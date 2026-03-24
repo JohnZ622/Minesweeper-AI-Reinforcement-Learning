@@ -1,3 +1,5 @@
+import os
+
 import tensorflow as tf
 from keras.callbacks import TensorBoard
 
@@ -8,6 +10,7 @@ class ModifiedTensorBoard(TensorBoard):
         super().__init__(**kwargs)
         self.step = 1
         self.writer = tf.summary.FileWriter(self.log_dir)
+        self._train_dir = os.path.join(self.log_dir, 'train')
 
     # Overriding this method to stop creating default log writer
     def set_model(self, model):

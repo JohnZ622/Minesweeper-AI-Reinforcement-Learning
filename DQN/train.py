@@ -1,9 +1,14 @@
-import argparse, pickle
+import argparse, pickle, signal, sys
 from tqdm import tqdm
+import os
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+import tensorflow as tf
+
 from keras.models import load_model
 from DQN_agent import *
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+print("GPU Available: ", tf.config.list_physical_devices('GPU'))
 
 # intake MinesweeperEnv parameters, beginner mode by default
 def parse_args():
@@ -41,6 +46,7 @@ def main():
         past_n_wins = env.n_wins
 
         done = False
+        new_transitions_count = 0
         while not done:
             current_state = env.state_im
 
@@ -51,8 +57,10 @@ def main():
             episode_reward += reward
 
             agent.update_replay_memory((current_state, action, reward, new_state, done))
-            agent.train(done)
-
+            if new_transitions_count == 5000:
+                agent.train(done)
+                new_transitions_count = 0
+            
             n_clicks += 1
 
         progress_list.append(env.n_progress) # n of non-guess moves
@@ -81,10 +89,12 @@ def main():
             print(f'Episode: {episode}, Median progress: {med_progress}, Median reward: {med_reward}, Win rate : {win_rate}')
 
         if not episode % SAVE_MODEL_EVERY:
-            with open(f'replay/{MODEL_NAME}.pkl', 'wb') as output:
+            os.makedirs('replay', exist_ok=True)
+            os.makedirs('models', exist_ok=True)
+            with open(f'replay/{params.model_name}.pkl', 'wb') as output:
                 pickle.dump(agent.replay_memory, output)
 
-            agent.model.save(f'models/{MODEL_NAME}.h5')
+            agent.model.save(f'models/{params.model_name}.h5')
 
 if __name__ == "__main__":
     main()

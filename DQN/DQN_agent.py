@@ -3,6 +3,8 @@ import os, sys
 ROOT = os.getcwd()
 sys.path.insert(1, f'{os.path.dirname(ROOT)}')
 
+import tensorflow as tf
+
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -37,8 +39,9 @@ UPDATE_TARGET_EVERY = 5
 MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_minlr{LEARN_MIN}'
 
 class DQNAgent(object):
-    def __init__(self, env, model_name=MODEL_NAME, conv_units=64, dense_units=256):
+    def __init__(self, env, model_name, conv_units=CONV_UNITS, dense_units=DENSE_UNITS):
         self.env = env
+        self.model_name = model_name
 
         # Deep Q-learning Parameters
         self.discount = DISCOUNT
@@ -56,7 +59,7 @@ class DQNAgent(object):
         self.target_update_counter = 0
 
         self.tensorboard = ModifiedTensorBoard(
-            log_dir=f'logs\\{model_name}', profile_batch=0)
+            log_dir=f'logs/{model_name}', profile_batch=0, update_freq=50)
 
     def get_action(self, state):
         board = state.reshape(1, self.env.ntiles)
@@ -67,9 +70,9 @@ class DQNAgent(object):
         if rand < self.epsilon: # random move (explore)
             move = np.random.choice(unsolved)
         else:
-            moves = self.model.predict(np.reshape(state, (1, self.env.nrows, self.env.ncols, 1)))
-            moves[board!=-0.125] = np.min(moves) # set already clicked tiles to min value
-            move = np.argmax(moves)
+            q_values = self.model.predict(np.reshape(state, (1, self.env.nrows, self.env.ncols, 1)))
+            q_values[board!=-0.125] = np.min(q_values) # set already clicked tiles to min value
+            move = np.argmax(q_values)
 
         return move
 
