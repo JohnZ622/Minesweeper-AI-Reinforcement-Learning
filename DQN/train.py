@@ -1,4 +1,4 @@
-import argparse, pickle, signal, sys, queue
+import argparse, pickle, signal, sys, queue, time
 from tqdm import tqdm
 import os
 
@@ -80,6 +80,8 @@ def main():
 
     progress_list, wins_list, ep_rewards = [], [], []
     n_clicks = 0
+    last_clicks_log = 0
+    last_clicks_log_time = time.time()
 
     episode = 0
     with tqdm(unit='episode') as pbar:
@@ -128,14 +130,21 @@ def main():
                 win_rate = round(np.sum(wins_list[-AGG_STATS_EVERY:]) / AGG_STATS_EVERY, 2)
                 med_reward = round(np.median(ep_rewards[-AGG_STATS_EVERY:]), 2)
 
+                now = time.time()
+                elapsed = now - last_clicks_log_time
+                clicks_per_sec = round((n_clicks - last_clicks_log) / elapsed, 1) if elapsed > 0 else 0
+                last_clicks_log = n_clicks
+                last_clicks_log_time = now
+
                 agent.tensorboard.update_stats(
                     progress_med = med_progress,
                     winrate = win_rate,
                     reward_med = med_reward,
                     learn_rate = agent.learn_rate,
-                    epsilon = agent.epsilon)
+                    epsilon = agent.epsilon,
+                    clicks_per_sec = clicks_per_sec)
 
-                print(f'Episode: {episode}, Median progress: {med_progress}, Median reward: {med_reward}, Win rate : {win_rate}')
+                print(f'Episode: {episode}, n_clicks: {n_clicks} ({clicks_per_sec}/s), Median progress: {med_progress}, Median reward: {med_reward}, Win rate : {win_rate}')
 
             if not episode % SAVE_MODEL_EVERY:
                 os.makedirs('replay', exist_ok=True)
