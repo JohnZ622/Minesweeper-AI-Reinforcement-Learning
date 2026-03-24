@@ -14,7 +14,7 @@ def parse_args():
 
 params = parse_args()
 
-my_model = load_model(f'models/{params.model}.h5')
+my_model = load_model(f'models/{params.model}.keras')
 
 def main():
     pg.FAILSAFE = True

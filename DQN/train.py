@@ -35,7 +35,7 @@ def main():
     env = MinesweeperEnv(params.width, params.height, params.n_mines)
     agent = DQNAgent(env, params.model_name)
 
-    model_path = f'models/{params.model_name}.h5'
+    model_path = f'models/{params.model_name}.keras'
     replay_path = f'replay/{params.model_name}.pkl'
 
     if os.path.exists(model_path):
@@ -62,7 +62,7 @@ def main():
         os.makedirs('models', exist_ok=True)
         with open(f'replay/{params.model_name}.pkl', 'wb') as output:
             pickle.dump(agent.replay_memory, output)
-        agent.model.save(f'models/{params.model_name}.h5')
+        agent.model.save(f'models/{params.model_name}.keras')
         print('Saved.')
         sys.exit(0)
 
@@ -71,63 +71,67 @@ def main():
     progress_list, wins_list, ep_rewards = [], [], []
     n_clicks = 0
 
-    for episode in tqdm(range(1, params.episodes+1), unit='episode'):
-        agent.tensorboard.step = episode
+    episode = 0
+    with tqdm(unit='episode') as pbar:
+        while True:
+            episode += 1
+            pbar.update(1)
+            agent.tensorboard.step = episode
 
-        env.reset()
-        episode_reward = 0
-        past_n_wins = env.n_wins
+            env.reset()
+            episode_reward = 0
+            past_n_wins = env.n_wins
 
-        done = False
-        new_transitions_count = 0
-        while not done:
-            current_state = env.state_im
+            done = False
+            new_transitions_count = 0
+            while not done:
+                current_state = env.state_im
 
-            action = agent.get_action(current_state)
+                action = agent.get_action(current_state)
 
-            new_state, reward, done = env.step(action)
+                new_state, reward, done = env.step(action)
 
-            episode_reward += reward
+                episode_reward += reward
 
-            agent.update_replay_memory((current_state, action, reward, new_state, done))
-            if new_transitions_count == 5000:
-                agent.train(done)
-                new_transitions_count = 0
-            
-            n_clicks += 1
+                agent.update_replay_memory((current_state, action, reward, new_state, done))
+                if new_transitions_count == 5000:
+                    agent.train(done)
+                    new_transitions_count = 0
 
-        progress_list.append(env.n_progress) # n of non-guess moves
-        ep_rewards.append(episode_reward)
+                n_clicks += 1
 
-        if env.n_wins > past_n_wins:
-            wins_list.append(1)
-        else:
-            wins_list.append(0)
+            progress_list.append(env.n_progress) # n of non-guess moves
+            ep_rewards.append(episode_reward)
 
-        if len(agent.replay_memory) < MEM_SIZE_MIN:
-            continue
+            if env.n_wins > past_n_wins:
+                wins_list.append(1)
+            else:
+                wins_list.append(0)
 
-        if not episode % AGG_STATS_EVERY:
-            med_progress = round(np.median(progress_list[-AGG_STATS_EVERY:]), 2)
-            win_rate = round(np.sum(wins_list[-AGG_STATS_EVERY:]) / AGG_STATS_EVERY, 2)
-            med_reward = round(np.median(ep_rewards[-AGG_STATS_EVERY:]), 2)
+            if len(agent.replay_memory) < MEM_SIZE_MIN:
+                continue
 
-            agent.tensorboard.update_stats(
-                progress_med = med_progress,
-                winrate = win_rate,
-                reward_med = med_reward,
-                learn_rate = agent.learn_rate,
-                epsilon = agent.epsilon)
+            if not episode % AGG_STATS_EVERY:
+                med_progress = round(np.median(progress_list[-AGG_STATS_EVERY:]), 2)
+                win_rate = round(np.sum(wins_list[-AGG_STATS_EVERY:]) / AGG_STATS_EVERY, 2)
+                med_reward = round(np.median(ep_rewards[-AGG_STATS_EVERY:]), 2)
 
-            print(f'Episode: {episode}, Median progress: {med_progress}, Median reward: {med_reward}, Win rate : {win_rate}')
+                agent.tensorboard.update_stats(
+                    progress_med = med_progress,
+                    winrate = win_rate,
+                    reward_med = med_reward,
+                    learn_rate = agent.learn_rate,
+                    epsilon = agent.epsilon)
 
-        if not episode % SAVE_MODEL_EVERY:
-            os.makedirs('replay', exist_ok=True)
-            os.makedirs('models', exist_ok=True)
-            with open(f'replay/{params.model_name}.pkl', 'wb') as output:
-                pickle.dump(agent.replay_memory, output)
+                print(f'Episode: {episode}, Median progress: {med_progress}, Median reward: {med_reward}, Win rate : {win_rate}')
 
-            agent.model.save(f'models/{params.model_name}.h5')
+            if not episode % SAVE_MODEL_EVERY:
+                os.makedirs('replay', exist_ok=True)
+                os.makedirs('models', exist_ok=True)
+                with open(f'replay/{params.model_name}.pkl', 'wb') as output:
+                    pickle.dump(agent.replay_memory, output)
+
+                agent.model.save(f'models/{params.model_name}.keras')
 
 if __name__ == "__main__":
     main()

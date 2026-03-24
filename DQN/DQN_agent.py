@@ -36,7 +36,7 @@ DENSE_UNITS = 512 # number of neurons in fully connected dense layer
 UPDATE_TARGET_EVERY = 5
 
 # Default model name
-MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_minlr{LEARN_MIN}'
+MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_minlr{LEARN_MIN}_9c08a21e4'
 
 class DQNAgent(object):
     def __init__(self, env, model_name, conv_units=CONV_UNITS, dense_units=DENSE_UNITS):
