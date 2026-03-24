@@ -35,9 +35,7 @@ def main():
     env = MinesweeperEnv(params.width, params.height, params.n_mines)
     agent = DQNAgent(env, params.model_name)
 
-    model_path = f'models/{params.model_name}.keras'
-    replay_path = f'replay/{params.model_name}.pkl'
-
+def load_model_and_replay_buffer(agent, model_path, replay_path):
     if os.path.exists(model_path):
         response = input(f"Model file found: '{model_path}'. Load it? [y=load / n=erase]: ").strip().lower()
         if response == 'y':
@@ -55,6 +53,17 @@ def main():
             print(f'Loaded replay buffer from {replay_path} ({len(agent.replay_memory)} entries)')
         else:
             print('Replay buffer will be overwritten.')
+
+
+def main():
+    env = MinesweeperEnv(params.width, params.height, params.n_mines)
+    agent = DQNAgent(env, params.model_name)
+
+    load_model_and_replay_buffer(
+        agent,
+        f'models/{params.model_name}.keras',
+        f'replay/{params.model_name}.pkl'
+    )
 
     def save_and_exit(_sig, _frame):
         print('\nInterrupted — saving replay buffer and model...')
