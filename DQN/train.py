@@ -1,4 +1,4 @@
-import argparse, pickle, signal, sys
+import argparse, pickle, signal, sys, queue
 from tqdm import tqdm
 import os
 
@@ -7,6 +7,7 @@ import tensorflow as tf
 
 from keras.models import load_model
 from DQN_agent import *
+from eval_loop import start_eval_thread
 
 print("GPU Available: ", tf.config.list_physical_devices('GPU'))
 
@@ -31,9 +32,6 @@ params = parse_args()
 AGG_STATS_EVERY = 100 # calculate stats every 100 games for tensorboard
 SAVE_MODEL_EVERY = 10_000 # save model and replay every 10,000 episodes
 
-def main():
-    env = MinesweeperEnv(params.width, params.height, params.n_mines)
-    agent = DQNAgent(env, params.model_name)
 
 def load_model_and_replay_buffer(agent, model_path, replay_path):
     if os.path.exists(model_path):
@@ -77,6 +75,9 @@ def main():
 
     signal.signal(signal.SIGINT, save_and_exit)
 
+    eval_queue = start_eval_thread(
+        params.model_name, agent.model, params.width, params.height, params.n_mines)
+
     progress_list, wins_list, ep_rewards = [], [], []
     n_clicks = 0
 
@@ -104,6 +105,10 @@ def main():
                 agent.update_replay_memory((current_state, action, reward, new_state, done))
                 if n_clicks % 500 == 0:
                     agent.train(done)
+                    try:
+                        eval_queue.put_nowait((agent.model.get_weights(), n_clicks))
+                    except queue.Full:
+                        pass  # eval still running, skip this update
 
                 n_clicks += 1
 
