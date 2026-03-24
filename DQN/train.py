@@ -35,6 +35,39 @@ def main():
     env = MinesweeperEnv(params.width, params.height, params.n_mines)
     agent = DQNAgent(env, params.model_name)
 
+    model_path = f'models/{params.model_name}.h5'
+    replay_path = f'replay/{params.model_name}.pkl'
+
+    if os.path.exists(model_path):
+        response = input(f"Model file found: '{model_path}'. Load it? [y=load / n=erase]: ").strip().lower()
+        if response == 'y':
+            agent.model = load_model(model_path)
+            agent.target_model = load_model(model_path)
+            print(f'Loaded model from {model_path}')
+        else:
+            print('Model will be overwritten.')
+
+    if os.path.exists(replay_path):
+        response = input(f"Replay buffer found: '{replay_path}'. Load it? [y=load / n=erase]: ").strip().lower()
+        if response == 'y':
+            with open(replay_path, 'rb') as f:
+                agent.replay_memory = pickle.load(f)
+            print(f'Loaded replay buffer from {replay_path} ({len(agent.replay_memory)} entries)')
+        else:
+            print('Replay buffer will be overwritten.')
+
+    def save_and_exit(_sig, _frame):
+        print('\nInterrupted — saving replay buffer and model...')
+        os.makedirs('replay', exist_ok=True)
+        os.makedirs('models', exist_ok=True)
+        with open(f'replay/{params.model_name}.pkl', 'wb') as output:
+            pickle.dump(agent.replay_memory, output)
+        agent.model.save(f'models/{params.model_name}.h5')
+        print('Saved.')
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, save_and_exit)
+
     progress_list, wins_list, ep_rewards = [], [], []
     n_clicks = 0
 
