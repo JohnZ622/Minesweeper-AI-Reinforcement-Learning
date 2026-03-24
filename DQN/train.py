@@ -82,6 +82,7 @@ def main():
     n_clicks = 0
     last_clicks_log = 0
     last_clicks_log_time = time.time()
+    last_train_time = time.time()
 
     episode = 0
     with tqdm(unit='episode') as pbar:
@@ -106,7 +107,18 @@ def main():
 
                 agent.update_replay_memory((current_state, action, reward, new_state, done))
                 if n_clicks % 500 == 0:
+                    now = time.time()
+                    time_between_trains = now - last_train_time
+                    last_train_time = now
+
+                    train_start = time.time()
                     agent.train(done)
+                    train_duration = time.time() - train_start
+
+                    agent.tensorboard.update_stats(
+                        time_between_trains=time_between_trains,
+                        train_duration=train_duration,
+                    )
                     try:
                         eval_queue.put_nowait((agent.model.get_weights(), n_clicks))
                     except queue.Full:
