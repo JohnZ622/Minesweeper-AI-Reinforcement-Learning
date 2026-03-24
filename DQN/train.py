@@ -52,6 +52,12 @@ def load_model_and_replay_buffer(agent, model_path, replay_path):
         else:
             print('Replay buffer will be overwritten.')
 
+def save_model_and_replay(agent):
+    os.makedirs('replay', exist_ok=True)
+    os.makedirs('models', exist_ok=True)
+    with open(f'replay/{params.model_name}.pkl', 'wb') as output:
+        pickle.dump(agent.replay_memory, output)
+    agent.model.save(f'models/{params.model_name}.keras')
 
 def main():
     env = MinesweeperEnv(params.width, params.height, params.n_mines)
@@ -63,15 +69,13 @@ def main():
         f'replay/{params.model_name}.pkl'
     )
 
+    stop_training = False
+
+
     def save_and_exit(_sig, _frame):
+        nonlocal stop_training
         print('\nInterrupted — saving replay buffer and model...')
-        os.makedirs('replay', exist_ok=True)
-        os.makedirs('models', exist_ok=True)
-        with open(f'replay/{params.model_name}.pkl', 'wb') as output:
-            pickle.dump(agent.replay_memory, output)
-        agent.model.save(f'models/{params.model_name}.keras')
-        print('Saved.')
-        sys.exit(0)
+        stop_training = True
 
     signal.signal(signal.SIGINT, save_and_exit)
 
@@ -86,7 +90,7 @@ def main():
 
     episode = 0
     with tqdm(unit='episode') as pbar:
-        while True:
+        while not stop_training:
             episode += 1
             pbar.update(1)
             agent.tensorboard.step = n_clicks
@@ -159,12 +163,9 @@ def main():
                 print(f'Episode: {episode}, n_clicks: {n_clicks} ({clicks_per_sec}/s), Median progress: {med_progress}, Median reward: {med_reward}, Win rate : {win_rate}')
 
             if not episode % SAVE_MODEL_EVERY:
-                os.makedirs('replay', exist_ok=True)
-                os.makedirs('models', exist_ok=True)
-                with open(f'replay/{params.model_name}.pkl', 'wb') as output:
-                    pickle.dump(agent.replay_memory, output)
-
-                agent.model.save(f'models/{params.model_name}.keras')
+                save_model_and_replay(agent)
+        # Final save on exit
+        save_model_and_replay(agent)
 
 if __name__ == "__main__":
     main()
