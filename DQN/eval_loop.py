@@ -26,7 +26,7 @@ def run_policy_eval(eval_model, eval_env, eval_tensorboard, step):
         q_values[board != -0.125] = np.min(q_values)
         return np.argmax(q_values)
 
-    total_progress, total_wins = 0, 0
+    total_progress, total_wins, total_guesses = 0, 0, 0
     for _ in range(EVAL_EPISODES):
         eval_env.reset()
         past_wins = eval_env.n_wins
@@ -34,16 +34,19 @@ def run_policy_eval(eval_model, eval_env, eval_tensorboard, step):
         while not done:
             _, _, done = eval_env.step(greedy_action(eval_env.state_im))
         total_progress += eval_env.n_progress
+        total_guesses += eval_env.n_guesses
         if eval_env.n_wins > past_wins:
             total_wins += 1
 
     avg_progress = round(total_progress / EVAL_EPISODES, 2)
     eval_winrate = round(total_wins / EVAL_EPISODES, 2)
+    eval_guessrate = round(total_guesses / EVAL_EPISODES, 2)
 
     eval_tensorboard.step = step
     eval_tensorboard.update_stats(
         eval_progress_avg=avg_progress,
         eval_winrate=eval_winrate,
+        eval_guessrate=eval_guessrate,
     )
 
 

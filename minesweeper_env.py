@@ -14,6 +14,7 @@ class MinesweeperEnv(object):
         self.state, self.state_im = self.init_state()
         self.n_clicks = 0
         self.n_progress = 0
+        self.n_guesses = 0
         self.n_wins = 0
 
         self.rewards = rewards
@@ -169,6 +170,7 @@ class MinesweeperEnv(object):
     def reset(self):
         self.n_clicks = 0
         self.n_progress = 0
+        self.n_guesses = 0
         self.grid = self.init_grid()
         self.board = self.get_board()
         self.state, self.state_im = self.init_state()
@@ -204,6 +206,7 @@ class MinesweeperEnv(object):
         else: # if progress
             if all(t==-0.125 for t in neighbors): # if guess (all neighbors are unsolved)
                 reward = self.rewards['guess']
+                self.n_guesses += 1
 
             else:
                 reward = self.rewards['progress']
