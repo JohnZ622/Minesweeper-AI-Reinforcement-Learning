@@ -1,0 +1,17 @@
+[project]
+name = "minesweeper-ai-reinforcement-learning"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "keras>=3.13.2",
+    "numpy>=2.4.3",
+    "opencv-python>=4.13.0.92",
+    "pandas>=3.0.1",
+    "pyautogui>=0.9.54",
+    "setuptools<=81",
+    "tensorboard>=2.20.0",
+    "tensorflow[and-cuda]>=2.21.0",
+    "tqdm>=4.67.3",
+]
