@@ -76,14 +76,13 @@ def main():
         while True:
             episode += 1
             pbar.update(1)
-            agent.tensorboard.step = episode
+            agent.tensorboard.step = n_clicks
 
             env.reset()
             episode_reward = 0
             past_n_wins = env.n_wins
 
             done = False
-            new_transitions_count = 0
             while not done:
                 current_state = env.state_im
 
@@ -94,9 +93,8 @@ def main():
                 episode_reward += reward
 
                 agent.update_replay_memory((current_state, action, reward, new_state, done))
-                if new_transitions_count == 5000:
+                if n_clicks % 500 == 0:
                     agent.train(done)
-                    new_transitions_count = 0
 
                 n_clicks += 1
 
