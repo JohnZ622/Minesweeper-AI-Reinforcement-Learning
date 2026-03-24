@@ -1,1 +1,1 @@
-9c08a21e4: median reward continuously oscillate around three after 26k episodes
+9c08a21e4: batch size 64, epislon decay rate: 0.9999998 median reward continuously oscillate around three after 26k episodes, even after 300k episodes, progress is still oscillating around 3.
