@@ -1,1 +1,6 @@
 9c08a21e4: batch size 64, epislon decay rate: 0.9999998 median reward continuously oscillate around three after 26k episodes, even after 300k episodes, progress is still oscillating around 3.
+
+6ca45e32
+- batch size is 512
+- evaluation progress rises from 0 to around 12 after 2M steps (clicks) (maybe 4 M) and then stays constant after that.
+- win rate stablizes around 0.5 after 4M clicks
