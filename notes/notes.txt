@@ -7,4 +7,7 @@
 
 4d3dc52
 (cd05ff8474725c68cebb62cce9c8ede3f2c4e875):
-- batch size is 64
+- batch size is 64, eval progress avg rises much slower and tops off at 8 after 36 M steps.
+
+20391b4b
+- batch size back to 512
