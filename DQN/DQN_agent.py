@@ -19,7 +19,7 @@ MEM_SIZE = 50_000 # number of moves to store in replay buffer
 MEM_SIZE_MIN = 1_000 # min number of moves in replay buffer
 
 # Learning settings
-BATCH_SIZE = 64
+BATCH_SIZE = 512
 learn_rate = 0.01
 LEARN_DECAY = 0.99975
 LEARN_MIN = 0.001
