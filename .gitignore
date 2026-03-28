@@ -6,3 +6,4 @@ logs/
 *.pkl
 *.keras
 *.h5
+*.step
