@@ -33,7 +33,12 @@ AGG_STATS_EVERY = 100 # calculate stats every 100 games for tensorboard
 SAVE_MODEL_EVERY = 10_000 # save model and replay every 10,000 episodes
 
 
-def load_model_and_replay_buffer(agent, model_path, replay_path):
+def load_model_and_replay_buffer(agent):
+    n_clicks = 0
+    model_path = f'models/{agent.model_name}.keras'
+    replay_path = f'replay/{agent.model_name}.pkl'
+    step_path = f'replay/{agent.model_name}.step'
+
     if os.path.exists(model_path):
         response = input(f"Model file found: '{model_path}'. Load it? [y=load / n=erase]: ").strip().lower()
         if response == 'y':
@@ -52,22 +57,27 @@ def load_model_and_replay_buffer(agent, model_path, replay_path):
         else:
             print('Replay buffer will be overwritten.')
 
-def save_model_and_replay(agent):
+    if os.path.exists(step_path):
+        with open(step_path, 'r') as f:
+            n_clicks = int(f.read().strip())
+        print(f'Loaded step counter: {n_clicks}')
+
+    return n_clicks
+
+def save_model_and_replay(agent, n_clicks):
     os.makedirs('replay', exist_ok=True)
     os.makedirs('models', exist_ok=True)
-    with open(f'replay/{params.model_name}.pkl', 'wb') as output:
+    with open(f'replay/{agent.model_name}.pkl', 'wb') as output:
         pickle.dump(agent.replay_memory, output)
-    agent.model.save(f'models/{params.model_name}.keras')
+    agent.model.save(f'models/{agent.model_name}.keras')
+    with open(f'replay/{agent.model_name}.step', 'w') as f:
+        f.write(str(n_clicks))
 
 def main():
     env = MinesweeperEnv(params.width, params.height, params.n_mines)
     agent = DQNAgent(env, params.model_name)
 
-    load_model_and_replay_buffer(
-        agent,
-        f'models/{params.model_name}.keras',
-        f'replay/{params.model_name}.pkl'
-    )
+    n_clicks = load_model_and_replay_buffer(agent)
 
     stop_training = False
 
@@ -83,7 +93,6 @@ def main():
         params.model_name, agent.model, params.width, params.height, params.n_mines)
 
     progress_list, wins_list, ep_rewards = [], [], []
-    n_clicks = 0
     last_clicks_log = 0
     last_clicks_log_time = time.time()
     last_train_time = time.time()
@@ -163,9 +172,9 @@ def main():
                 print(f'Episode: {episode}, n_clicks: {n_clicks} ({clicks_per_sec}/s), Median progress: {med_progress}, Median reward: {med_reward}, Win rate : {win_rate}')
 
             if not episode % SAVE_MODEL_EVERY:
-                save_model_and_replay(agent)
+                save_model_and_replay(agent, n_clicks)
         # Final save on exit
-        save_model_and_replay(agent)
+        save_model_and_replay(agent, n_clicks)
 
 if __name__ == "__main__":
     main()
