@@ -1,5 +1,7 @@
 import os, sys
 
+from DQN import create_dqn
+
 ROOT = os.getcwd()
 sys.path.insert(1, f'{os.path.dirname(ROOT)}')
 
