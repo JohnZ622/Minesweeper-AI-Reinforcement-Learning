@@ -72,7 +72,7 @@ class DQNAgent(object):
         if rand < self.epsilon: # random move (explore)
             move = np.random.choice(unsolved)
         else:
-            q_values = self.model.predict(np.reshape(state, (1, self.env.nrows, self.env.ncols, 1)))
+            q_values = self.model(np.reshape(state, (1, self.env.nrows, self.env.ncols, 1))).numpy()
             q_values[board!=-0.125] = np.min(q_values) # set already clicked tiles to min value
             move = np.argmax(q_values)
 
@@ -88,10 +88,10 @@ class DQNAgent(object):
         batch = random.sample(self.replay_memory, BATCH_SIZE)
 
         current_states = np.array([transition[0] for transition in batch])
-        current_qs_list = self.model.predict(current_states)
+        current_qs_list = self.model.predict(current_states, batch_size=len(current_states), verbose = 0)
 
         new_current_states = np.array([transition[3] for transition in batch])
-        future_qs_list = self.target_model.predict(new_current_states)
+        future_qs_list = self.target_model.predict(new_current_states, batch_size=len(new_current_states), verbose = 0)
 
         X,y = [], []
 

@@ -21,8 +21,7 @@ def run_policy_eval(eval_model, eval_env, eval_tensorboard, step):
 
     def greedy_action(state):
         board = state.reshape(1, ntiles)
-        q_values = eval_model.predict(
-            np.reshape(state, (1, nrows, ncols, 1)), verbose=0)
+        q_values = eval_model(np.reshape(state, (1, nrows, ncols, 1)), verbose=0).numpy()
         q_values[board != -0.125] = np.min(q_values)
         return np.argmax(q_values)
 
