@@ -1,3 +1,4 @@
+import pygame
 import random
 import numpy as np
 import pandas as pd
@@ -5,7 +6,7 @@ import pandas as pd
 class MinesweeperEnv(object):
     def __init__(self, width, height, n_mines,
         # based on https://github.com/jakejhansen/minesweeper_solver
-        rewards={'win':1, 'lose':-1, 'progress':0.3, 'guess':-0.3, 'no_progress' : -0.3}):
+        rewards={'win':1, 'lose':-1, 'progress':0.3, 'guess':-0.3, 'no_progress' : -0.3}, gui=False):
         self.nrows, self.ncols = width, height
         self.ntiles = self.nrows * self.ncols
         self.n_mines = n_mines
@@ -18,6 +19,9 @@ class MinesweeperEnv(object):
         self.n_wins = 0
 
         self.rewards = rewards
+
+        if gui:
+            self.init_gui()
 
     def init_grid(self):
         board = np.zeros((self.nrows, self.ncols), dtype='object')
@@ -213,3 +217,41 @@ class MinesweeperEnv(object):
                 self.n_progress += 1 # track n of non-isoloated clicks
 
         return self.state_im, reward, done
+
+def init_gui(self):
+        # Initialize all PyGame and GUI parameters
+        pygame.init()
+        pygame.mixer.quit() # Fixes bug with high PyGame CPU usage
+        self.tile_rowdim = 32 # pixels per tile along the horizontal
+        self.tile_coldim = 32 # pixels per tile along the vertical
+        self.game_width = self.ncols * self.tile_coldim
+        self.game_height = self.nrows * self.tile_rowdim
+        self.ui_height = 32 # Contains text regarding score and move #
+        self.gameDisplay = pygame.display.set_mode((self.game_width, self.game_height+self.ui_height))
+        pygame.display.set_caption('Minesweeper')
+        # Load Minesweeper tileset
+        self.tilemine = pygame.image.load('img/mine.jpg').convert()
+        self.tile0 = pygame.image.load('img/0.jpg').convert()
+        self.tile1 = pygame.image.load('img/1.jpg').convert()
+        self.tile2 = pygame.image.load('img/2.jpg').convert()
+        self.tile3 = pygame.image.load('img/3.jpg').convert()
+        self.tile4 = pygame.image.load('img/4.jpg').convert()
+        self.tile5 = pygame.image.load('img/5.jpg').convert()
+        self.tile6 = pygame.image.load('img/6.jpg').convert()
+        self.tile7 = pygame.image.load('img/7.jpg').convert()
+        self.tile8 = pygame.image.load('img/8.jpg').convert()
+        self.tilehidden = pygame.image.load('img/hidden.jpg').convert()
+        self.tileexplode = pygame.image.load('img/explode.jpg').convert()
+        self.tile_dict = {-1:self.tilemine,0:self.tile0,1:self.tile1,
+                          2:self.tile2,3:self.tile3,4:self.tile4,5:self.tile5,
+                          6:self.tile6,7:self.tile7,8:self.tile8,
+                          9:self.tilehidden, -2:self.tileexplode}
+        # Set font and font color
+        self.myfont = pygame.font.SysFont('Segoe UI', 32)
+        self.font_color = (255,255,255) # White
+        self.victory_color = (8,212,29) # Green
+        self.defeat_color = (255,0,0) # Red
+        # Create selection surface to show what tile the agent is choosing
+        self.selectionSurface = pygame.Surface((self.tile_rowdim, self.tile_coldim))
+        self.selectionSurface.set_alpha(128) # Opacity from 255 (opaque) to 0 (transparent)
+        self.selectionSurface.fill((245, 245, 66)) # Yellow

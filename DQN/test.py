@@ -5,7 +5,7 @@ from MinesweeperAgentWeb import *
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Play Minesweeper online using a DQN')
-    parser.add_argument('--model', type=str, default='conv128x4_dense512x2_y0.1_minlr0.001',
+    parser.add_argument('--model', type=str, default='conv64x4_dense512x2_y0.1_minlr0.001_20391b4b',
                         help='name of model')
     parser.add_argument('--episodes', type=int, default=100,
                         help='Number of episodes to play')

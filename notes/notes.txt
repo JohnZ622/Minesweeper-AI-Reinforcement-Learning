@@ -11,3 +11,13 @@
 
 20391b4b
 - batch size back to 512
+
+so i have a reinforcement learning program that is learning to play minesweeper with a neural net:
+
+I explore state using "current model", generating transitions into the replay buffer. 50000 entries.
+After 500 new transitions generated, I train the model.
+I either train using a batch of 64 or a batch of 512.
+Adam optimizer with learning rate 0.01 and epsilon 1e-4
+
+When I train with batch size 64, the evaluation win rate stays at 0 after 20-30M explorations.
+If I train with batch 512, performance is much better. win rate can go to 55% after 4 M explorations.
