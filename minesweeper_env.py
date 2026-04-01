@@ -326,7 +326,7 @@ class MinesweeperEnv(object):
                     rgb_tuple = (int(qval_scale*255), 0, 0)
                 center =  (int(h*self.tile_coldim + self.tile_coldim/2), \
                             int(k*self.tile_rowdim + self.tile_rowdim/2))
-                radius = int(self.tile_rowdim/4 * qval_scale)
+                radius = int(self.tile_rowdim/6 * qval_scale)
                 pygame.draw.circle(self.gameDisplay, rgb_tuple, center, radius)
         pygame.display.update()
 
