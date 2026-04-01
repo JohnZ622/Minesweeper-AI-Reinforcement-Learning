@@ -10,32 +10,102 @@ class MinesweeperEnv(object):
         self.nrows, self.ncols = width, height
         self.ntiles = self.nrows * self.ncols
         self.n_mines = n_mines
-        self.grid = self.init_grid()
-        self.board = self.get_board()
-        self.state, self.state_im = self.init_state()
+        self._init_grid() # Initialize the grid with bombs and empty spaces, marked with 'B' and 0 respectively
+        self._init_board()
+        self.state, self.state_im = self._init_state() # state value U is Unsolved, B is bomb, 0-8 for number of adjacent bombs
         self.n_clicks = 0
         self.n_progress = 0
         self.n_guesses = 0
         self.n_wins = 0
+        self.explosion = False
+        self.done = False
 
         self.rewards = rewards
 
-        if gui:
-            self.init_gui()
+        self.playerfield = np.ones((self.nrows, self.ncols), dtype='int')*9 # The state the player sees, 9 means unclicked, -1 means bomb, 0-8 means number of adjacent bombs, -2 means explosion
 
-    def init_grid(self):
-        board = np.zeros((self.nrows, self.ncols), dtype='object')
+
+        if gui:
+            self._init_gui()
+
+    def _init_grid(self):
+        self.grid = np.zeros((self.nrows, self.ncols), dtype='object')
         mines = self.n_mines
 
         while mines > 0:
             row, col = random.randint(0, self.nrows-1), random.randint(0, self.ncols-1)
-            if board[row][col] != 'B':
-                board[row][col] = 'B'
+            if self.grid[row][col] != 'B':
+                self.grid[row][col] = 'B'
                 mines -= 1
 
-        return board
+    def _init_board(self):
+        self.board = self.grid.copy()
 
-    def get_neighbors(self, coord):
+        coords = []
+        for x in range(self.nrows):
+            for y in range(self.ncols):
+                if self.grid[x,y] != 'B':
+                    coords.append((x,y))
+
+        for coord in coords:
+            self.board[coord] = self._count_bombs(coord)
+
+    def reset(self):
+        self.n_clicks = 0
+        self.n_progress = 0
+        self.n_guesses = 0
+        self._init_grid()
+        self._init_board()
+        self.state, self.state_im = self._init_state()
+        self.done = False
+        
+        self.explosion = False
+        self.playerfield = np.ones((self.nrows, self.ncols), dtype='int')*9
+
+    def step(self, action_index):
+        self.done = False
+        coords = self.state[action_index]['coord']
+
+        current_state = self.state_im
+
+        # get neighbors before action
+        neighbors = self._get_neighbors(coords)
+
+        self._click(action_index)
+
+        # update state image
+        new_state_im = self._get_state_im(self.state)
+        self.state_im = new_state_im
+
+        if self.state[action_index]['value']=='B': # if lose
+            reward = self.rewards['lose']
+            self.done = True
+            self.explosion = True
+
+        elif np.sum(new_state_im==-0.125) == self.n_mines: # if win
+            reward = self.rewards['win']
+            self.done = True
+            self.n_progress += 1
+            self.n_wins += 1
+
+        elif np.sum(self.state_im == -0.125) == np.sum(current_state == -0.125):
+            reward = self.rewards['no_progress']
+
+        else: # if progress
+            if all(t==-0.125 for t in neighbors): # if guess (all neighbors are unsolved)
+                reward = self.rewards['guess']
+                self.n_guesses += 1
+
+            else:
+                reward = self.rewards['progress']
+                self.n_progress += 1 # track n of non-isoloated clicks
+        
+        self._update_playerfield()
+        self._render()
+        return self.state_im, reward, self.done
+
+
+    def _get_neighbors(self, coord):
         x,y = coord[0], coord[1]
 
         neighbors = []
@@ -48,25 +118,11 @@ class MinesweeperEnv(object):
 
         return np.array(neighbors)
 
-    def count_bombs(self, coord):
-        neighbors = self.get_neighbors(coord)
+    def _count_bombs(self, coord):
+        neighbors = self._get_neighbors(coord)
         return np.sum(neighbors=='B')
 
-    def get_board(self):
-        board = self.grid.copy()
-
-        coords = []
-        for x in range(self.nrows):
-            for y in range(self.ncols):
-                if self.grid[x,y] != 'B':
-                    coords.append((x,y))
-
-        for coord in coords:
-            board[coord] = self.count_bombs(coord)
-
-        return board
-
-    def get_state_im(self, state):
+    def _get_state_im(self, state):
         '''
         Gets the numeric image representation state of the board.
         This is what will be the input for the DQN.
@@ -82,19 +138,27 @@ class MinesweeperEnv(object):
         state_im = state_im.astype(np.float16)
 
         return state_im
+    
+    def _update_playerfield(self):
+        state_im = [t['value'] for t in self.state]
+        state_im = np.reshape(state_im, (self.nrows, self.ncols)).astype(object)
+        
+        state_im[state_im=='U'] = 9
+        state_im[state_im=='B'] = -1
+        self.playerfield = state_im.astype(np.int8)
 
-    def init_state(self):
+    def _init_state(self):
         unsolved_array = np.full((self.nrows, self.ncols), 'U', dtype='object')
 
         state = []
         for (x, y), value in np.ndenumerate(unsolved_array):
             state.append({'coord': (x, y), 'value':value})
 
-        state_im = self.get_state_im(state)
+        state_im = self._get_state_im(state)
 
         return state, state_im
 
-    def color_state(self, value):
+    def _color_state(self, value):
         if value == -1:
             color = 'white'
         elif value == 0:
@@ -124,9 +188,9 @@ class MinesweeperEnv(object):
         state = state_im * 8.0
         state_df = pd.DataFrame(state.reshape((self.nrows, self.ncols)), dtype=np.int8)
 
-        display(state_df.style.applymap(self.color_state))
+        display(state_df.style.applymap(self._color_state))
 
-    def click(self, action_index):
+    def _click(self, action_index):
         coord = self.state[action_index]['coord']
         value = self.board[coord]
 
@@ -143,11 +207,11 @@ class MinesweeperEnv(object):
 
         # reveal all neighbors if value is 0
         if value == 0.0:
-            self.reveal_neighbors(coord, clicked_tiles=[])
+            self._reveal_neighbors(coord, clicked_tiles=[])
 
         self.n_clicks += 1
 
-    def reveal_neighbors(self, coord, clicked_tiles):
+    def _reveal_neighbors(self, coord, clicked_tiles):
         processed = clicked_tiles
         state_df = pd.DataFrame(self.state)
         x,y = coord[0], coord[1]
@@ -169,89 +233,77 @@ class MinesweeperEnv(object):
 
                     # recursion in case neighbors are also 0
                     if self.board[row, col] == 0.0:
-                        self.reveal_neighbors((row, col), clicked_tiles=processed)
+                        self._reveal_neighbors((row, col), clicked_tiles=processed)
 
-    def reset(self):
-        self.n_clicks = 0
-        self.n_progress = 0
-        self.n_guesses = 0
-        self.grid = self.init_grid()
-        self.board = self.get_board()
-        self.state, self.state_im = self.init_state()
+    def _init_gui(self):
+            # Initialize all PyGame and GUI parameters
+            pygame.init()
+            pygame.mixer.quit() # Fixes bug with high PyGame CPU usage
+            self.tile_rowdim = 32 # pixels per tile along the horizontal
+            self.tile_coldim = 32 # pixels per tile along the vertical
+            self.game_width = self.ncols * self.tile_coldim
+            self.game_height = self.nrows * self.tile_rowdim
+            self.ui_height = 32 # Contains text regarding score and move #
+            self.gameDisplay = pygame.display.set_mode((self.game_width, self.game_height+self.ui_height))
+            pygame.display.set_caption('Minesweeper')
+            # Load Minesweeper tileset
+            self.tilemine = pygame.image.load('img/mine.jpg').convert()
+            self.tile0 = pygame.image.load('img/0.jpg').convert()
+            self.tile1 = pygame.image.load('img/1.jpg').convert()
+            self.tile2 = pygame.image.load('img/2.jpg').convert()
+            self.tile3 = pygame.image.load('img/3.jpg').convert()
+            self.tile4 = pygame.image.load('img/4.jpg').convert()
+            self.tile5 = pygame.image.load('img/5.jpg').convert()
+            self.tile6 = pygame.image.load('img/6.jpg').convert()
+            self.tile7 = pygame.image.load('img/7.jpg').convert()
+            self.tile8 = pygame.image.load('img/8.jpg').convert()
+            self.tilehidden = pygame.image.load('img/hidden.jpg').convert()
+            self.tileexplode = pygame.image.load('img/explode.jpg').convert()
+            self.tile_dict = {-1:self.tilemine,0:self.tile0,1:self.tile1,
+                            2:self.tile2,3:self.tile3,4:self.tile4,5:self.tile5,
+                            6:self.tile6,7:self.tile7,8:self.tile8,
+                            9:self.tilehidden, -2:self.tileexplode}
+            # Set font and font color
+            self.myfont = pygame.font.SysFont('Segoe UI', 32)
+            self.font_color = (255,255,255) # White
+            self.victory_color = (8,212,29) # Green
+            self.defeat_color = (255,0,0) # Red
+            # Create selection surface to show what tile the agent is choosing
+            self.selectionSurface = pygame.Surface((self.tile_rowdim, self.tile_coldim))
+            self.selectionSurface.set_alpha(128) # Opacity from 255 (opaque) to 0 (transparent)
+            self.selectionSurface.fill((245, 245, 66)) # Yellow     
 
-    def step(self, action_index):
-        done = False
-        coords = self.state[action_index]['coord']
-
-        current_state = self.state_im
-
-        # get neighbors before action
-        neighbors = self.get_neighbors(coords)
-
-        self.click(action_index)
-
-        # update state image
-        new_state_im = self.get_state_im(self.state)
-        self.state_im = new_state_im
-
-        if self.state[action_index]['value']=='B': # if lose
-            reward = self.rewards['lose']
-            done = True
-
-        elif np.sum(new_state_im==-0.125) == self.n_mines: # if win
-            reward = self.rewards['win']
-            done = True
-            self.n_progress += 1
-            self.n_wins += 1
-
-        elif np.sum(self.state_im == -0.125) == np.sum(current_state == -0.125):
-            reward = self.rewards['no_progress']
-
-        else: # if progress
-            if all(t==-0.125 for t in neighbors): # if guess (all neighbors are unsolved)
-                reward = self.rewards['guess']
-                self.n_guesses += 1
-
+    def _render(self, valid_qvalues=np.array([])):
+        # Update the game display after every agent action
+        # Accepts a masked array of Q-values to plot as an overlay on the GUI
+        # Update and blit text
+        text_score = self.myfont.render('SCORE: ', True, self.font_color)
+        # text_score_number = self.myfont.render(str(self.score), True, self.font_color)
+        text_move = self.myfont.render('MOVE: ', True, self.font_color)
+        # text_move_number = self.myfont.render(str(self.move_num), True, self.font_color)
+        text_victory = self.myfont.render('VICTORY!', True, self.victory_color)
+        text_defeat =  self.myfont.render('DEFEAT!', True, self.defeat_color)         
+        self.gameDisplay.fill(pygame.Color('black')) # Clear screen
+        self.gameDisplay.blit(text_move, (45, self.game_height+5))
+        # self.gameDisplay.blit(text_move_number, (140, self.game_height+5))
+        self.gameDisplay.blit(text_score, (400, self.game_height+5))
+        # self.gameDisplay.blit(text_score_number, (500, self.game_height+5))
+        if self.done:
+            if self.explosion:
+                self.gameDisplay.blit(text_defeat, (700, self.game_height+5))
             else:
-                reward = self.rewards['progress']
-                self.n_progress += 1 # track n of non-isoloated clicks
+                self.gameDisplay.blit(text_victory, (700, self.game_height+5))
+        # Blit updated view of minefield
+        self._plot_playerfield()
+        """
+        if valid_qvalues.size > 0:
+            # Blit surface showing agent selection and Q-value representations
+            self.selection_animation(np.argmax(valid_qvalues))
+            self.plot_qvals(valid_qvalues) """
+        pygame.display.update()
 
-        return self.state_im, reward, done
-
-def init_gui(self):
-        # Initialize all PyGame and GUI parameters
-        pygame.init()
-        pygame.mixer.quit() # Fixes bug with high PyGame CPU usage
-        self.tile_rowdim = 32 # pixels per tile along the horizontal
-        self.tile_coldim = 32 # pixels per tile along the vertical
-        self.game_width = self.ncols * self.tile_coldim
-        self.game_height = self.nrows * self.tile_rowdim
-        self.ui_height = 32 # Contains text regarding score and move #
-        self.gameDisplay = pygame.display.set_mode((self.game_width, self.game_height+self.ui_height))
-        pygame.display.set_caption('Minesweeper')
-        # Load Minesweeper tileset
-        self.tilemine = pygame.image.load('img/mine.jpg').convert()
-        self.tile0 = pygame.image.load('img/0.jpg').convert()
-        self.tile1 = pygame.image.load('img/1.jpg').convert()
-        self.tile2 = pygame.image.load('img/2.jpg').convert()
-        self.tile3 = pygame.image.load('img/3.jpg').convert()
-        self.tile4 = pygame.image.load('img/4.jpg').convert()
-        self.tile5 = pygame.image.load('img/5.jpg').convert()
-        self.tile6 = pygame.image.load('img/6.jpg').convert()
-        self.tile7 = pygame.image.load('img/7.jpg').convert()
-        self.tile8 = pygame.image.load('img/8.jpg').convert()
-        self.tilehidden = pygame.image.load('img/hidden.jpg').convert()
-        self.tileexplode = pygame.image.load('img/explode.jpg').convert()
-        self.tile_dict = {-1:self.tilemine,0:self.tile0,1:self.tile1,
-                          2:self.tile2,3:self.tile3,4:self.tile4,5:self.tile5,
-                          6:self.tile6,7:self.tile7,8:self.tile8,
-                          9:self.tilehidden, -2:self.tileexplode}
-        # Set font and font color
-        self.myfont = pygame.font.SysFont('Segoe UI', 32)
-        self.font_color = (255,255,255) # White
-        self.victory_color = (8,212,29) # Green
-        self.defeat_color = (255,0,0) # Red
-        # Create selection surface to show what tile the agent is choosing
-        self.selectionSurface = pygame.Surface((self.tile_rowdim, self.tile_coldim))
-        self.selectionSurface.set_alpha(128) # Opacity from 255 (opaque) to 0 (transparent)
-        self.selectionSurface.fill((245, 245, 66)) # Yellow
+    def _plot_playerfield(self):
+        # Blits the current state's tiles onto the game display
+        for k in range(0,self.nrows):
+            for h in range(0,self.ncols):
+                self.gameDisplay.blit(self.tile_dict[self.playerfield[k,h]], (h*self.tile_coldim, k*self.tile_rowdim))
