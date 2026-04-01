@@ -274,7 +274,7 @@ class MinesweeperEnv(object):
             self.selectionSurface.set_alpha(128) # Opacity from 255 (opaque) to 0 (transparent)
             self.selectionSurface.fill((245, 245, 66)) # Yellow     
 
-    def _render(self, valid_qvalues=np.array([])):
+    def _render(self):
         # Update the game display after every agent action
         # Accepts a masked array of Q-values to plot as an overlay on the GUI
         # Update and blit text
@@ -301,6 +301,29 @@ class MinesweeperEnv(object):
             # Blit surface showing agent selection and Q-value representations
             self.selection_animation(np.argmax(valid_qvalues))
             self.plot_qvals(valid_qvalues) """
+        pygame.display.update()
+
+    def plot_qvalues(self, valid_qvalues):
+        # Superimposes a colored circle over each unrevealed tile in the grid
+        # A large blue circle is a tile the agent feels confident is safe
+        # A large red circle is a tile the agent feels confident is a mine
+        # A small dark/black colored circle is a tile the agent is unsure of
+        max_qval = np.max(valid_qvalues)
+        min_qval = np.min(valid_qvalues)
+        qval_array = valid_qvalues.reshape(self.nrows, self.ncols)
+        for k in range(0,self.nrows):
+            for h in range(0,self.ncols):
+                qval = qval_array[k,h]
+                if qval >= 0: # Color blue
+                    qval_scale = np.abs((qval / max_qval) ** 0.5)
+                    rgb_tuple = (0, 0, int(qval_scale*255))
+                else: # Color red
+                    qval_scale = np.abs((qval / min_qval) ** 0.5)
+                    rgb_tuple = (int(qval_scale*255), 0, 0)
+                center =  (int(h*self.tile_coldim + self.tile_coldim/2), \
+                            int(k*self.tile_rowdim + self.tile_rowdim/2))
+                radius = int(self.tile_rowdim/4 * qval_scale)
+                pygame.draw.circle(self.gameDisplay, rgb_tuple, center, radius)
         pygame.display.update()
 
     def _plot_playerfield(self):
