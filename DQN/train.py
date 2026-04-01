@@ -75,7 +75,7 @@ def main():
             while not done:
                 current_state = env.state_im
 
-                action, q_values = agent.get_action(current_state, explore=True)
+                action, _ = agent.get_action(current_state, explore=True)
 
                 new_state, reward, done = env.step(action)
 
@@ -145,6 +145,7 @@ def main():
                     f'Win rate: {win_rate}, '
                     f'Time between trains: {time_between_trains:.2f}s, '
                     f'Train duration: {train_duration:.2f}s'
+                    f'Epsilon: {agent.epsilon:.4f}, '
                 )
 
             if not episode % SAVE_MODEL_EVERY:
