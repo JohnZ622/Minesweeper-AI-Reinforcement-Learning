@@ -2,6 +2,8 @@ import argparse, signal, queue, time
 from tqdm import tqdm
 import os
 
+from gui_common import wait_for_click
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
 import tensorflow as tf
 
@@ -26,6 +28,8 @@ def parse_args():
                         help='Number of mines on the board')
     parser.add_argument('--model_name', type=str, default=f'{MODEL_NAME}',
                         help='Name of model')
+    parser.add_argument('--visualize_training', action='store_true',
+                        help='Visualize the training process', default=True)
 
     return parser.parse_args()
 
@@ -34,9 +38,8 @@ params = parse_args()
 AGG_STATS_EVERY = 100 # calculate stats every 100 games for tensorboard
 SAVE_MODEL_EVERY = 10_000 # save model and replay every 10,000 episodes
 
-
 def main():
-    env = MinesweeperEnv(params.width, params.height, params.n_mines)
+    env = MinesweeperEnv(params.width, params.height, params.n_mines, gui=params.visualize_training)
     agent = DQNAgent(env, params.model_name)
 
     n_clicks = agent.load_model_and_replay_buffer(prompt=True)
@@ -75,9 +78,16 @@ def main():
             while not done:
                 current_state = env.state_im
 
-                action, _ = agent.get_action(current_state, explore=True)
+                action, q_values = agent.get_action(current_state, explore=True)
+
+                if (q_values is not None) and params.visualize_training:
+                    env.plot_qvalues(q_values)
+                    wait_for_click()
 
                 new_state, reward, done = env.step(action)
+
+                if params.visualize_training:
+                    wait_for_click()
 
                 episode_reward += reward
 
