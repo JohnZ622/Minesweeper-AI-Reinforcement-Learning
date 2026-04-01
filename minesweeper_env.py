@@ -132,6 +132,7 @@ class MinesweeperEnv(object):
         '''
 
         state_im = [t['value'] for t in state]
+        # Need to keep a third dimension of size 1 because neural network treats that as number of channels
         state_im = np.reshape(state_im, (self.nrows, self.ncols, 1)).astype(object)
 
         state_im[state_im=='U'] = -1
