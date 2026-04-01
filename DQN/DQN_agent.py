@@ -63,20 +63,21 @@ class DQNAgent(object):
         self.tensorboard = ModifiedTensorBoard(
             log_dir=f'logs/{model_name}', profile_batch=0, update_freq=50)
 
-    def get_action(self, state):
+    def get_action(self, state, explore=False):
         board = state.reshape(1, self.env.ntiles)
         unsolved = [i for i, x in enumerate(board[0]) if x==-0.125]
 
         rand = np.random.random() # random value b/w 0 & 1
 
-        if rand < self.epsilon: # random move (explore)
+        if rand < self.epsilon and explore is True: # random move (explore)
             move = np.random.choice(unsolved)
+            q_values = None
         else:
             q_values = self.model(np.reshape(state, (1, self.env.nrows, self.env.ncols, 1))).numpy()
             q_values[board!=-0.125] = np.min(q_values) # set already clicked tiles to min value
             move = np.argmax(q_values)
 
-        return move
+        return move, q_values
 
     def update_replay_memory(self, transition):
         self.replay_memory.append(transition)

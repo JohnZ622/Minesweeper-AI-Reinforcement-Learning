@@ -69,7 +69,7 @@ def main():
             while not done:
                 current_state = env.state_im
 
-                action = agent.get_action(current_state)
+                action = agent.get_action(current_state, explore=True)
 
                 new_state, reward, done = env.step(action)
 
