@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, pickle
 
 from DQN import create_dqn
 
@@ -125,6 +125,47 @@ class DQNAgent(object):
 
         # decay epsilon
         self.epsilon = max(EPSILON_MIN, self.epsilon*EPSILON_DECAY)
+
+    def load_model_and_replay_buffer(self):
+        n_clicks = 0
+        model_path = f'models/{self.model_name}.keras'
+        replay_path = f'replay/{self.model_name}.pkl'
+        step_path = f'replay/{self.model_name}.step'
+
+        if os.path.exists(model_path):
+            response = input(f"Model file found: '{model_path}'. Load it? [y=load / n=erase]: ").strip().lower()
+            if response == 'y':
+                from keras.models import load_model
+                self.model = load_model(model_path)
+                self.target_model = load_model(model_path)
+                print(f'Loaded model from {model_path}')
+            else:
+                print('Model will be overwritten.')
+
+        if os.path.exists(replay_path):
+            response = input(f"Replay buffer found: '{replay_path}'. Load it? [y=load / n=erase]: ").strip().lower()
+            if response == 'y':
+                with open(replay_path, 'rb') as f:
+                    self.replay_memory = pickle.load(f)
+                print(f'Loaded replay buffer from {replay_path} ({len(self.replay_memory)} entries)')
+            else:
+                print('Replay buffer will be overwritten.')
+
+        if os.path.exists(step_path):
+            with open(step_path, 'r') as f:
+                n_clicks = int(f.read().strip())
+            print(f'Loaded step counter: {n_clicks}')
+
+        return n_clicks
+
+    def save_model_and_replay_buffer(self, n_clicks):
+        os.makedirs('replay', exist_ok=True)
+        os.makedirs('models', exist_ok=True)
+        with open(f'replay/{self.model_name}.pkl', 'wb') as output:
+            pickle.dump(self.replay_memory, output)
+        self.model.save(f'models/{self.model_name}.keras')
+        with open(f'replay/{self.model_name}.step', 'w') as f:
+            f.write(str(n_clicks))
 
 if __name__ == "__main__":
     DQNAgent(MinesweeperEnv(9,9,10))

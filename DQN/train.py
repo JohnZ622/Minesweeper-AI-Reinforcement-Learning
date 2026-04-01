@@ -1,11 +1,10 @@
-import argparse, pickle, signal, sys, queue, time
+import argparse, signal, queue, time
 from tqdm import tqdm
 import os
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
 import tensorflow as tf
 
-from keras.models import load_model
 from DQN_agent import *
 from eval_loop import start_eval_thread
 
@@ -33,54 +32,13 @@ AGG_STATS_EVERY = 100 # calculate stats every 100 games for tensorboard
 SAVE_MODEL_EVERY = 10_000 # save model and replay every 10,000 episodes
 
 
-def load_model_and_replay_buffer(agent):
-    n_clicks = 0
-    model_path = f'models/{agent.model_name}.keras'
-    replay_path = f'replay/{agent.model_name}.pkl'
-    step_path = f'replay/{agent.model_name}.step'
-
-    if os.path.exists(model_path):
-        response = input(f"Model file found: '{model_path}'. Load it? [y=load / n=erase]: ").strip().lower()
-        if response == 'y':
-            agent.model = load_model(model_path)
-            agent.target_model = load_model(model_path)
-            print(f'Loaded model from {model_path}')
-        else:
-            print('Model will be overwritten.')
-
-    if os.path.exists(replay_path):
-        response = input(f"Replay buffer found: '{replay_path}'. Load it? [y=load / n=erase]: ").strip().lower()
-        if response == 'y':
-            with open(replay_path, 'rb') as f:
-                agent.replay_memory = pickle.load(f)
-            print(f'Loaded replay buffer from {replay_path} ({len(agent.replay_memory)} entries)')
-        else:
-            print('Replay buffer will be overwritten.')
-
-    if os.path.exists(step_path):
-        with open(step_path, 'r') as f:
-            n_clicks = int(f.read().strip())
-        print(f'Loaded step counter: {n_clicks}')
-
-    return n_clicks
-
-def save_model_and_replay(agent, n_clicks):
-    os.makedirs('replay', exist_ok=True)
-    os.makedirs('models', exist_ok=True)
-    with open(f'replay/{agent.model_name}.pkl', 'wb') as output:
-        pickle.dump(agent.replay_memory, output)
-    agent.model.save(f'models/{agent.model_name}.keras')
-    with open(f'replay/{agent.model_name}.step', 'w') as f:
-        f.write(str(n_clicks))
-
 def main():
     env = MinesweeperEnv(params.width, params.height, params.n_mines)
     agent = DQNAgent(env, params.model_name)
 
-    n_clicks = load_model_and_replay_buffer(agent)
+    n_clicks = agent.load_model_and_replay_buffer()
 
     stop_training = False
-
 
     def save_and_exit(_sig, _frame):
         nonlocal stop_training
@@ -172,9 +130,9 @@ def main():
                 print(f'Episode: {episode}, n_clicks: {n_clicks} ({clicks_per_sec}/s), Median progress: {med_progress}, Median reward: {med_reward}, Win rate : {win_rate}')
 
             if not episode % SAVE_MODEL_EVERY:
-                save_model_and_replay(agent, n_clicks)
+                agent.save_model_and_replay_buffer(n_clicks)
         # Final save on exit
-        save_model_and_replay(agent, n_clicks)
+        agent.save_model_and_replay_buffer(n_clicks)
 
 if __name__ == "__main__":
     main()
