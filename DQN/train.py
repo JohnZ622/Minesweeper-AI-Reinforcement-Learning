@@ -19,8 +19,6 @@ def parse_args():
                         help='height of the board')
     parser.add_argument('--n_mines', type=int, default=10,
                         help='Number of mines on the board')
-    parser.add_argument('--episodes', type=int, default=100_000,
-                        help='Number of episodes to train on')
     parser.add_argument('--model_name', type=str, default=f'{MODEL_NAME}',
                         help='Name of model')
 
