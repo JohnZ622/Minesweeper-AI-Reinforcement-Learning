@@ -1,4 +1,5 @@
 import argparse
+import pygame
 from tqdm import tqdm
 from keras.models import load_model
 from DQN_agent import DQNAgent
@@ -15,6 +16,15 @@ def parse_args():
 
 params = parse_args()
 
+def wait_for_click():
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                return
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
 def main():
     env = MinesweeperEnv(width=9, height=9, n_mines=10, gui=True)
     agent = DQNAgent(env, params.model_name)
@@ -29,10 +39,11 @@ def main():
             action, q_values = agent.get_action(current_state, explore=False)
             if (q_values is not None):
                 env.plot_qvalues(q_values)
-                input("Press any key to continue...")
+
+                wait_for_click()
 
             new_state, reward, done = env.step(action)
-            input("Press any key to continue...")
+            wait_for_click()
 
 
 if __name__ == "__main__":
