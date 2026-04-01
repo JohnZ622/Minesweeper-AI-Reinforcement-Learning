@@ -13,6 +13,8 @@ if tf.config.list_physical_devices('GPU') == []:
     print("No GPU detected. Training may be slow.")
     exit()
 
+UPDATE_EVERY_N_CLICKS = 10
+
 # intake MinesweeperEnv parameters, beginner mode by default
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a DQN to play Minesweeper')
@@ -54,10 +56,12 @@ def main():
 
     progress_list, wins_list, ep_rewards = [], [], []
     last_clicks_log = 0
+    last_trains_log = 0
     last_clicks_log_time = time.time()
     last_train_time = time.time()
 
     episode = 0
+    n_trains = 0
     with tqdm(unit='episode') as pbar:
         while not stop_training:
             episode += 1
@@ -78,20 +82,16 @@ def main():
                 episode_reward += reward
 
                 agent.update_replay_memory((current_state, action, reward, new_state, done))
-                if n_clicks % 500 == 0:
+                if n_clicks % UPDATE_EVERY_N_CLICKS == 0:
                     now = time.time()
                     time_between_trains = now - last_train_time
                     last_train_time = now
 
                     train_start = time.time()
-                    agent.train(done)
+                    agent.train(update_target= (n_clicks % UPDATE_EVERY_N_CLICKS) % 5 == 0) # update target every 5
                     train_duration = time.time() - train_start
-                    
-                    agent.tensorboard.step = n_clicks
-                    agent.tensorboard.update_stats(
-                        time_between_trains=time_between_trains,
-                        train_duration=train_duration,
-                    )
+                    n_trains += 1
+
                     try:
                         eval_queue.put_nowait((agent.model.get_weights(), n_clicks))
                     except queue.Full:
@@ -118,18 +118,34 @@ def main():
                 now = time.time()
                 elapsed = now - last_clicks_log_time
                 clicks_per_sec = round((n_clicks - last_clicks_log) / elapsed, 1) if elapsed > 0 else 0
+                trains_per_sec = round((n_trains - last_trains_log) / elapsed, 2) if elapsed > 0 else 0
                 last_clicks_log = n_clicks
+                last_trains_log = n_trains
                 last_clicks_log_time = now
 
+                agent.tensorboard.step = n_clicks
                 agent.tensorboard.update_stats(
                     progress_med = med_progress,
                     winrate = win_rate,
                     reward_med = med_reward,
                     learn_rate = agent.learn_rate,
                     epsilon = agent.epsilon,
-                    clicks_per_sec = clicks_per_sec)
+                    clicks_per_sec = clicks_per_sec,
+                    trains_per_sec = trains_per_sec,
+                    time_between_trains=time_between_trains,
+                    train_duration=train_duration)
 
-                print(f'Episode: {episode}, n_clicks: {n_clicks} ({clicks_per_sec}/s), Median progress: {med_progress}, Median reward: {med_reward}, Win rate : {win_rate}')
+
+                print(
+                    f'Episode: {episode}, '
+                    f'n_clicks: {n_clicks} ({clicks_per_sec}/s), '
+                    f'n_trains: {n_trains}, ({trains_per_sec}/s), '
+                    f'Median progress: {med_progress}, '
+                    f'Median reward: {med_reward}, '
+                    f'Win rate: {win_rate}, '
+                    f'Time between trains: {time_between_trains:.2f}s, '
+                    f'Train duration: {train_duration:.2f}s'
+                )
 
             if not episode % SAVE_MODEL_EVERY:
                 agent.save_model_and_replay_buffer(n_clicks)
