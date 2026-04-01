@@ -24,8 +24,9 @@ class MinesweeperEnv(object):
 
         self.playerfield = np.ones((self.nrows, self.ncols), dtype='int')*9 # The state the player sees, 9 means unclicked, -1 means bomb, 0-8 means number of adjacent bombs, -2 means explosion
 
-
+        self.gui = False
         if gui:
+            self.gui = gui
             self._init_gui()
 
     def _init_grid(self):
@@ -100,8 +101,10 @@ class MinesweeperEnv(object):
                 reward = self.rewards['progress']
                 self.n_progress += 1 # track n of non-isoloated clicks
         
-        self._update_playerfield()
-        self._render()
+        if self.gui:    
+            self._update_playerfield()
+            self._render()
+
         return self.state_im, reward, self.done
 
 
