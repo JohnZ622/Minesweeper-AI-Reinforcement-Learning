@@ -36,7 +36,7 @@ def main():
     env = MinesweeperEnv(params.width, params.height, params.n_mines)
     agent = DQNAgent(env, params.model_name)
 
-    n_clicks = agent.load_model_and_replay_buffer()
+    n_clicks = agent.load_model_and_replay_buffer(prompt=True)
 
     stop_training = False
 

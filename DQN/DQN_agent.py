@@ -126,14 +126,17 @@ class DQNAgent(object):
         # decay epsilon
         self.epsilon = max(EPSILON_MIN, self.epsilon*EPSILON_DECAY)
 
-    def load_model_and_replay_buffer(self):
+    def load_model_and_replay_buffer(self, prompt: bool = True):
         n_clicks = 0
         model_path = f'models/{self.model_name}.keras'
         replay_path = f'replay/{self.model_name}.pkl'
         step_path = f'replay/{self.model_name}.step'
 
         if os.path.exists(model_path):
-            response = input(f"Model file found: '{model_path}'. Load it? [y=load / n=erase]: ").strip().lower()
+            if prompt:
+                response = input(f"Model file found: '{model_path}'. Load it? [y=load / n=erase]: ").strip().lower()
+            else:
+                response = 'y'
             if response == 'y':
                 from keras.models import load_model
                 self.model = load_model(model_path)
@@ -143,7 +146,10 @@ class DQNAgent(object):
                 print('Model will be overwritten.')
 
         if os.path.exists(replay_path):
-            response = input(f"Replay buffer found: '{replay_path}'. Load it? [y=load / n=erase]: ").strip().lower()
+            if prompt:
+                response = input(f"Replay buffer found: '{replay_path}'. Load it? [y=load / n=erase]: ").strip().lower()
+            else:
+                response = 'y'
             if response == 'y':
                 with open(replay_path, 'rb') as f:
                     self.replay_memory = pickle.load(f)
