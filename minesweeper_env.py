@@ -144,7 +144,7 @@ class MinesweeperEnv(object):
         state_im = np.reshape(state_im, (self.nrows, self.ncols)).astype(object)
         
         state_im[state_im=='U'] = 9
-        state_im[state_im=='B'] = -1
+        state_im[state_im=='B'] = -2 # this way it paints the "red explosion" image
         self.playerfield = state_im.astype(np.int8)
 
     def _init_state(self):
@@ -209,6 +209,7 @@ class MinesweeperEnv(object):
         if value == 0.0:
             self._reveal_neighbors(coord, clicked_tiles=[])
 
+        self._last_click_coords = coord
         self.n_clicks += 1
 
     def _reveal_neighbors(self, coord, clicked_tiles):
@@ -307,3 +308,8 @@ class MinesweeperEnv(object):
         for k in range(0,self.nrows):
             for h in range(0,self.ncols):
                 self.gameDisplay.blit(self.tile_dict[self.playerfield[k,h]], (h*self.tile_coldim, k*self.tile_rowdim))
+        if self.n_clicks > 0:
+            (x,y) = self._last_click_coords
+            tinted_image = self.tile_dict[self.playerfield[x,y]].copy()
+            tinted_image.fill((255, 255, 0), special_flags=pygame.BLEND_RGBA_MULT) # Yellow tint
+            self.gameDisplay.blit(tinted_image, (y*self.tile_coldim, x*self.tile_rowdim))
