@@ -26,7 +26,10 @@ def main():
         done = False
         while not done:
             current_state = env.state_im
-            action = agent.get_action(current_state)
+            action, q_values = agent.get_action(current_state, explore=False)
+            if (q_values is not None):
+                env.plot_qvalues(q_values)
+                input("Press any key to continue...")
 
             new_state, reward, done = env.step(action)
             input("Press any key to continue...")
