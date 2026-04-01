@@ -60,7 +60,6 @@ def main():
         while not stop_training:
             episode += 1
             pbar.update(1)
-            agent.tensorboard.step = n_clicks
 
             env.reset()
             episode_reward = 0
@@ -85,7 +84,8 @@ def main():
                     train_start = time.time()
                     agent.train(done)
                     train_duration = time.time() - train_start
-
+                    
+                    agent.tensorboard.step = n_clicks
                     agent.tensorboard.update_stats(
                         time_between_trains=time_between_trains,
                         train_duration=train_duration,
