@@ -58,7 +58,6 @@ class DQNAgent(object):
         self.target_model.set_weights(self.model.get_weights())
 
         self.replay_memory = deque(maxlen=MEM_SIZE)
-        self.target_update_counter = 0
 
         self.tensorboard = ModifiedTensorBoard(
             log_dir=f'logs/{model_name}', profile_batch=0, update_freq=50)
@@ -82,7 +81,7 @@ class DQNAgent(object):
     def update_replay_memory(self, transition):
         self.replay_memory.append(transition)
 
-    def train(self, done):
+    def train(self, update_target):
         if len(self.replay_memory) < MEM_SIZE_MIN:
             return
 
@@ -114,12 +113,8 @@ class DQNAgent(object):
                        if done else None)
 
         # updating to determine if we want to update target_model yet
-        if done:
-            self.target_update_counter += 1
-
-        if self.target_update_counter > UPDATE_TARGET_EVERY:
+        if update_target:
             self.target_model.set_weights(self.model.get_weights())
-            self.target_update_counter = 0
 
         # decay learn_rate
         self.learn_rate = max(LEARN_MIN, self.learn_rate*LEARN_DECAY)
