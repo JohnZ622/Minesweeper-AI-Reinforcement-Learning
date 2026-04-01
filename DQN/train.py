@@ -35,6 +35,7 @@ def main():
     agent = DQNAgent(env, params.model_name)
 
     n_clicks = agent.load_model_and_replay_buffer(prompt=True)
+    agent.epsilon = 0.01
 
     stop_training = False
 
@@ -67,7 +68,7 @@ def main():
             while not done:
                 current_state = env.state_im
 
-                action = agent.get_action(current_state, explore=True)
+                action, q_values = agent.get_action(current_state, explore=True)
 
                 new_state, reward, done = env.step(action)
 
