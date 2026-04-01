@@ -9,6 +9,9 @@ from DQN_agent import *
 from eval_loop import start_eval_thread
 
 print("GPU Available: ", tf.config.list_physical_devices('GPU'))
+if tf.config.list_physical_devices('GPU') == []:
+    print("No GPU detected. Training may be slow.")
+    exit()
 
 # intake MinesweeperEnv parameters, beginner mode by default
 def parse_args():
