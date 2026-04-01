@@ -1,11 +1,12 @@
 import argparse
 from tqdm import tqdm
 from keras.models import load_model
-from MinesweeperAgentWeb import *
+from DQN_agent import DQNAgent
+from minesweeper_env import *
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Play Minesweeper online using a DQN')
-    parser.add_argument('--model', type=str, default='conv64x4_dense512x2_y0.1_minlr0.001_20391b4b',
+    parser.add_argument('--model_name', type=str, default='conv64x4_dense512x2_y0.1_minlr0.001_20391b4b',
                         help='name of model')
     parser.add_argument('--episodes', type=int, default=100,
                         help='Number of episodes to play')
@@ -14,21 +15,22 @@ def parse_args():
 
 params = parse_args()
 
-my_model = load_model(f'models/{params.model}.keras')
-
 def main():
-    pg.FAILSAFE = True
-    agent = MinesweeperAgentWeb(my_model)
+    env = MinesweeperEnv(width=9, height=9, n_mines=10, gui=True)
+    agent = DQNAgent(env, params.model_name)
+    agent.load_model_and_replay_buffer(prompt=False)
 
     for episode in tqdm(range(1, params.episodes+1)):
-        agent.reset()
+        env.reset()
 
         done = False
         while not done:
-            current_state = agent.state
+            current_state = env.state_im
             action = agent.get_action(current_state)
 
-            new_state, done = agent.step(action)
+            new_state, reward, done = env.step(action)
+            input("Press any key to continue...")
+
 
 if __name__ == "__main__":
     main()
