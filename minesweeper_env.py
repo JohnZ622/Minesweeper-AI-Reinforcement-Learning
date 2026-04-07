@@ -307,7 +307,8 @@ class MinesweeperEnv(object):
             self.plot_qvals(valid_qvalues) """
         pygame.display.update()
 
-    def plot_qvalues(self, valid_qvalues):
+    def plot_qvalues_and_next_action(self, action_index, valid_qvalues):
+        (x,y) = self.state[action_index]['coord']
         # Superimposes a colored circle over each unrevealed tile in the grid
         # A large blue circle is a tile the agent feels confident is safe
         # A large red circle is a tile the agent feels confident is a mine
@@ -324,11 +325,13 @@ class MinesweeperEnv(object):
                 else: # Color red
                     qval_scale = np.abs((qval / min_qval) ** 0.5)
                     rgb_tuple = (int(qval_scale*255), 0, 0)
+                if (k, h) == (x, y): # Color yellow for the next action
+                    rgb_tuple = (255, 255, 0)
                 center =  (int(h*self.tile_coldim + self.tile_coldim/2), \
                             int(k*self.tile_rowdim + self.tile_rowdim/2))
                 radius = int(self.tile_rowdim/6 * qval_scale)
                 pygame.draw.circle(self.gameDisplay, rgb_tuple, center, radius)
-        pygame.display.update()
+        pygame.display.update()     
 
     def _plot_playerfield(self):
         # Blits the current state's tiles onto the game display

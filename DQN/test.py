@@ -30,7 +30,7 @@ def main():
             current_state = env.state_im
             action, q_values = agent.get_action(current_state, explore=False)
             if (q_values is not None):
-                env.plot_qvalues(q_values)
+                env.plot_qvalues_and_next_action(action, q_values)
                 wait_for_click()
 
             new_state, reward, done = env.step(action)
