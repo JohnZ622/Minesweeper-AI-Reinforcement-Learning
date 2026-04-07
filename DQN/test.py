@@ -1,4 +1,5 @@
 import argparse
+import numpy as np
 import pygame
 from tqdm import tqdm
 from keras.models import load_model
@@ -12,29 +13,67 @@ def parse_args():
                         help='name of model')
     parser.add_argument('--episodes', type=int, default=100,
                         help='Number of episodes to play')
+    parser.add_argument('--visualize', action='store_true',
+                        help='Visualize gameplay step-by-step (default: run headless evaluation)')
 
     return parser.parse_args()
 
 params = parse_args()
 
-def main():
-    env = MinesweeperEnv(width=9, height=9, n_mines=10, gui=True)
-    agent = DQNAgent(env, params.model_name)
-    agent.load_model_and_replay_buffer(prompt=False)
-
-    for episode in tqdm(range(1, params.episodes+1)):
+def visualize(env, agent):
+    for episode in tqdm(range(1, params.episodes + 1)):
         env.reset()
-
         done = False
         while not done:
             current_state = env.state_im
             action, q_values = agent.get_action(current_state, explore=False)
-            if (q_values is not None):
+            if q_values is not None:
                 env.plot_qvalues_and_next_action(action, q_values)
                 wait_for_click()
-
             new_state, reward, done = env.step(action)
             wait_for_click()
+
+
+def evaluate(env, agent):
+    n_safe_tiles = env.ntiles - env.n_mines
+    wins = []
+    progress_list = []
+    reward_list = []
+
+    for episode in tqdm(range(1, params.episodes + 1)):
+        env.reset()
+        done = False
+        episode_reward = 0.0
+
+        while not done:
+            current_state = env.state_im
+            action, q_values = agent.get_action(current_state, explore=False)
+            new_state, reward, done = env.step(action)
+            episode_reward += reward
+
+        unrevealed = int(np.sum(env.state_im == -0.125))
+        revealed = n_safe_tiles - unrevealed
+        progress = revealed / n_safe_tiles
+
+        wins.append(1 if env.n_wins > 0 else 0)
+        progress_list.append(progress)
+        reward_list.append(episode_reward)
+
+    print(f"\nResults over {params.episodes} episodes:")
+    print(f"  Win rate:        {np.mean(wins)*100:.1f}%")
+    print(f"  Median progress: {np.median(progress_list)*100:.1f}%")
+    print(f"  Median reward:   {np.median(reward_list):.3f}")
+
+
+def main():
+    env = MinesweeperEnv(width=9, height=9, n_mines=10, gui=params.visualize)
+    agent = DQNAgent(env, params.model_name)
+    agent.load_model_and_replay_buffer(prompt=False)
+
+    if params.visualize:
+        visualize(env, agent)
+    else:
+        evaluate(env, agent)
 
 
 if __name__ == "__main__":
