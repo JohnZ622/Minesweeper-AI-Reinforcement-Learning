@@ -48,6 +48,7 @@ def evaluate(env, agent):
         done = False
         episode_reward = 0.0
         steps = 0
+        past_wins = env.n_wins
 
         while not done:
             current_state = env.state_im
@@ -60,7 +61,7 @@ def evaluate(env, agent):
         revealed = n_safe_tiles - unrevealed
         progress = revealed / n_safe_tiles
 
-        won = 1 if env.n_wins > 0 else 0
+        won = 1 if env.n_wins > past_wins else 0
         wins.append(won)
         progress_list.append(progress)
         reward_list.append(episode_reward)
