@@ -15,7 +15,7 @@ def parse_args():
                         help='name of model')
     parser.add_argument('--episodes', type=int, default=100,
                         help='Number of episodes to play')
-    parser.add_argument('--visualize', action='store_true', default=False,
+    parser.add_argument('--visualize', action='store_true', default=True,
                         help='Visualize gameplay step-by-step (default: run headless evaluation)')
 
     return parser.parse_args()
@@ -33,6 +33,8 @@ def visualize(env, agent):
                 env.plot_qvalues_and_next_action(action, q_values)
                 wait_for_click()
             new_state, reward, done = env.step(action)
+            if done:
+                env.plot_qvalues_and_next_action(action, q_values)
             wait_for_click()
 
 
