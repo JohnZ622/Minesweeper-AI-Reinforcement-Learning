@@ -29,7 +29,7 @@ def parse_args():
     parser.add_argument('--model_name', type=str, default=f'{MODEL_NAME}',
                         help='Name of model')
     parser.add_argument('--visualize_training', action='store_true',
-                        help='Visualize the training process', default=True)
+                        help='Visualize the training process', default=False)
 
     return parser.parse_args()
 

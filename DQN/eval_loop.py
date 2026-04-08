@@ -4,6 +4,7 @@ import tensorflow as tf
 
 from minesweeper_env import *
 from my_tensorboard2 import *
+from common_constants import *
 
 EVAL_EPISODES = 30  # number of greedy episodes for policy evaluation
 
@@ -26,26 +27,34 @@ def run_policy_eval(eval_model, eval_env, eval_tensorboard, step):
         return np.argmax(q_values)
 
     total_progress, total_wins, total_guesses = 0, 0, 0
+    conditional_wins = []
     for _ in range(EVAL_EPISODES):
         eval_env.reset()
         past_wins = eval_env.n_wins
         done = False
+        steps = 0
         while not done:
             _, _, done = eval_env.step(greedy_action(eval_env.state_im))
+            steps += 1
+        won = eval_env.n_wins > past_wins
         total_progress += eval_env.n_progress
         total_guesses += eval_env.n_guesses
-        if eval_env.n_wins > past_wins:
+        if won:
             total_wins += 1
+        if steps > MIN_STEPS_FOR_CONDITIONAL_WIN:
+            conditional_wins.append(won)
 
     avg_progress = round(total_progress / EVAL_EPISODES, 2)
     eval_winrate = round(total_wins / EVAL_EPISODES, 2)
     eval_guessrate = round(total_guesses / EVAL_EPISODES, 2)
+    eval_cond_winrate = round(np.mean(conditional_wins), 2) if conditional_wins else 0.0
 
     eval_tensorboard.step = step
     eval_tensorboard.update_stats(
         eval_progress_avg=avg_progress,
         eval_winrate=eval_winrate,
         eval_guessrate=eval_guessrate,
+        eval_cond_winrate=eval_cond_winrate,
     )
 
 
