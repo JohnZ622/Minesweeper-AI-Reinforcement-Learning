@@ -9,13 +9,12 @@ import tensorflow as tf
 
 from DQN_agent import *
 from eval_loop import start_eval_thread
+from common_constants import *
 
 print("GPU Available: ", tf.config.list_physical_devices('GPU'))
 if tf.config.list_physical_devices('GPU') == []:
     print("No GPU detected. Training may be slow.")
     exit()
-
-UPDATE_EVERY_N_CLICKS = 10
 
 # intake MinesweeperEnv parameters, beginner mode by default
 def parse_args():
@@ -92,13 +91,13 @@ def main():
                 episode_reward += reward
 
                 agent.update_replay_memory((current_state, action, reward, new_state, done))
-                if n_clicks % UPDATE_EVERY_N_CLICKS == 0:
+                if n_clicks % TRAIN_EVERY_N_CLICKS == 0:
                     now = time.time()
                     time_between_trains = now - last_train_time
                     last_train_time = now
 
                     train_start = time.time()
-                    agent.train(update_target= (n_clicks % UPDATE_EVERY_N_CLICKS) % 5 == 0) # update target every 5
+                    agent.train(update_target= (n_clicks % TRAIN_EVERY_N_CLICKS) % UPDATE_TARGET_EVERY_N_TRAININGS == 0) # update target every 5
                     train_duration = time.time() - train_start
                     n_trains += 1
 

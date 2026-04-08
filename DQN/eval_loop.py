@@ -6,9 +6,6 @@ from minesweeper_env import *
 from my_tensorboard2 import *
 from common_constants import *
 
-EVAL_EPISODES = 30  # number of greedy episodes for policy evaluation
-
-
 def create_eval_tensorboard(model_name):
     return ModifiedTensorBoard(
         log_dir=f'logs/{model_name}_eval', profile_batch=0, update_freq=1)

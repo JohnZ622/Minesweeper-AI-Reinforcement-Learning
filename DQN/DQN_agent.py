@@ -1,7 +1,5 @@
 import os, sys, pickle
 
-from DQN import create_dqn
-
 ROOT = os.getcwd()
 sys.path.insert(1, f'{os.path.dirname(ROOT)}')
 
@@ -16,26 +14,7 @@ from minesweeper_env import *
 from my_tensorboard2 import *
 from DQN import *
 
-# Environment settings
-MEM_SIZE = 50_000 # number of moves to store in replay buffer
-MEM_SIZE_MIN = 1_000 # min number of moves in replay buffer
-
-# Learning settings
-BATCH_SIZE = 512
-learn_rate = 0.01
-LEARN_DECAY = 0.99975
-LEARN_MIN = 0.001
-DISCOUNT = 0.1 #gamma
-
-# Exploration settings
-epsilon = 0.95
-EPSILON_DECAY = 0.9999998
-EPSILON_MIN = 0.01
-
-# DQN settings
-CONV_UNITS = 64 # number of neurons in each conv layer
-DENSE_UNITS = 512 # number of neurons in fully connected dense layer
-UPDATE_TARGET_EVERY = 5
+from common_constants import *
 
 # Default model name
 MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_minlr{LEARN_MIN}_20391b4b'
@@ -46,9 +25,8 @@ class DQNAgent(object):
         self.model_name = model_name
 
         # Deep Q-learning Parameters
-        self.discount = DISCOUNT
-        self.learn_rate = learn_rate
-        self.epsilon = epsilon
+        self.learn_rate = LEARN_RATE
+        self.epsilon = EPSILON_INIT
         self.model = create_dqn(
             self.learn_rate, self.env.state_im.shape, self.env.ntiles, conv_units, dense_units)
 
