@@ -4,10 +4,9 @@ import pygame
 from tqdm import tqdm
 from keras.models import load_model
 from DQN_agent import DQNAgent
-from gui_common import wait_for_click
+from gui_common import *
 from minesweeper_env import *
-
-MIN_STEPS_FOR_CONDITIONAL_WIN = 4
+from common_constants import *
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Play Minesweeper online using a DQN')
@@ -23,20 +22,22 @@ def parse_args():
 params = parse_args()
 
 def visualize(env, agent):
+    advance_to_next_death = False
     for episode in tqdm(range(1, params.episodes + 1)):
         env.reset()
         done = False
         while not done:
             current_state = env.state_im
             action, q_values = agent.get_action(current_state, explore=False)
-            if q_values is not None:
+            if q_values is not None and not advance_to_next_death:
                 env.plot_qvalues_and_next_action(action, q_values)
-                wait_for_click()
+                advance_to_next_death = wait_for_user()
             new_state, reward, done = env.step(action)
-            if done:
+            if done and env.explosion:
                 env.plot_qvalues_and_next_action(action, q_values)
-            wait_for_click()
-
+                advance_to_next_death = wait_for_user()
+            elif not advance_to_next_death:
+                advance_to_next_death = wait_for_user()
 
 def evaluate(env, agent):
     n_safe_tiles = env.ntiles - env.n_mines
