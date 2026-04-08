@@ -10,9 +10,9 @@ class MinesweeperEnv(object):
         self.nrows, self.ncols = width, height
         self.ntiles = self.nrows * self.ncols
         self.n_mines = n_mines
-        self._init_grid() # Initialize the grid with bombs and empty spaces, marked with 'B' and 0 respectively
-        self._init_board()
-        self.state, self.state_im = self._init_state() # state value U is Unsolved, B is bomb, 0-8 for number of adjacent bombs
+        self._init_minefield() # Initialize the minefield with bombs and empty spaces, marked with 'B' and 0 respectively
+        self._init_numbered_board()
+        self.state, self.state_im = self._init_state() # initializes player view, state value U is Unsolved, B is bomb, 0-8 for number of adjacent bombs
         self.n_clicks = 0
         self.n_progress = 0
         self.n_guesses = 0
@@ -29,34 +29,34 @@ class MinesweeperEnv(object):
             self.gui = gui
             self._init_gui()
 
-    def _init_grid(self):
-        self.grid = np.zeros((self.nrows, self.ncols), dtype='object')
+    def _init_minefield(self):
+        self.minefield = np.zeros((self.nrows, self.ncols), dtype='object')
         mines = self.n_mines
 
         while mines > 0:
             row, col = random.randint(0, self.nrows-1), random.randint(0, self.ncols-1)
-            if self.grid[row][col] != 'B':
-                self.grid[row][col] = 'B'
+            if self.minefield[row][col] != 'B':
+                self.minefield[row][col] = 'B'
                 mines -= 1
 
-    def _init_board(self):
-        self.board = self.grid.copy()
+    def _init_numbered_board(self):
+        self.numbered_board = self.minefield.copy()
 
         coords = []
         for x in range(self.nrows):
             for y in range(self.ncols):
-                if self.grid[x,y] != 'B':
+                if self.minefield[x,y] != 'B':
                     coords.append((x,y))
 
         for coord in coords:
-            self.board[coord] = self._count_bombs(coord)
+            self.numbered_board[coord] = self._count_bombs(coord)
 
     def reset(self):
         self.n_clicks = 0
         self.n_progress = 0
         self.n_guesses = 0
-        self._init_grid()
-        self._init_board()
+        self._init_minefield()
+        self._init_numbered_board()
         self.state, self.state_im = self._init_state()
         self.done = False
         
@@ -117,7 +117,7 @@ class MinesweeperEnv(object):
                 if ((x != row or y != col) and
                     (0 <= col < self.ncols) and
                     (0 <= row < self.nrows)):
-                    neighbors.append(self.grid[row,col])
+                    neighbors.append(self.minefield[row,col])
 
         return np.array(neighbors)
 
@@ -127,7 +127,7 @@ class MinesweeperEnv(object):
 
     def _get_state_im(self, state):
         '''
-        Gets the numeric image representation state of the board.
+        Gets the numeric image representation state of the board visible to player.
         This is what will be the input for the DQN.
         '''
 
@@ -196,17 +196,17 @@ class MinesweeperEnv(object):
 
     def _click(self, action_index):
         coord = self.state[action_index]['coord']
-        value = self.board[coord]
+        value = self.numbered_board[coord]
 
         # ensure first move is not a bomb
         if (value == 'B') and (self.n_clicks == 0):
-            grid = self.grid.reshape(1, self.ntiles)
-            move = np.random.choice(np.nonzero(grid!='B')[1])
+            minefield = self.minefield.reshape(1, self.ntiles)
+            move = np.random.choice(np.nonzero(minefield!='B')[1])
             coord = self.state[move]['coord']
-            value = self.board[coord]
+            value = self.numbered_board[coord]
             self.state[move]['value'] = value
         else:
-            # make state equal to board at given coordinates
+            # make state equal to numbered_board at given coordinates
             self.state[action_index]['value'] = value
 
         # reveal all neighbors if value is 0
@@ -234,10 +234,10 @@ class MinesweeperEnv(object):
 
                     index = state_df.index[state_df['coord'] == (row,col)].tolist()[0]
 
-                    self.state[index]['value'] = self.board[row, col]
+                    self.state[index]['value'] = self.numbered_board[row, col]
 
                     # recursion in case neighbors are also 0
-                    if self.board[row, col] == 0.0:
+                    if self.numbered_board[row, col] == 0.0:
                         self._reveal_neighbors((row, col), clicked_tiles=processed)
 
     def _init_gui(self):
