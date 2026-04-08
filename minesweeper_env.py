@@ -64,6 +64,9 @@ class MinesweeperEnv(object):
         self.playerfield = np.ones((self.nrows, self.ncols), dtype='int')*9
 
     def step(self, action_index):
+        if getattr(self, '_visualization_only', False):
+            raise RuntimeError('Cannot call step() on an env loaded via set_state_im(); '
+                               'internal state (minefield, numbered_board, etc.) is not set.')
         self.done = False
         coords = self.state[action_index]['coord']
 
@@ -187,6 +190,26 @@ class MinesweeperEnv(object):
             color = 'magenta'
 
         return f'color: {color}'
+
+    def set_state_im(self, state_im):
+        '''
+        Load a state_im array into the env for visualization only.
+
+        Updates playerfield and done/explosion flags so _render() works, but does NOT
+        initialize minefield, numbered_board, or other game state — calling step() after
+        this will raise RuntimeError.
+
+        state_im encoding: -1/8 = hidden, -2/8 = explosion, 0–8/8 = revealed numbers.
+        playerfield encoding: 9 = hidden, -2 = explosion, -1 = mine, 0–8 = numbers.
+        '''
+        self._visualization_only = True
+
+        raw = np.round(state_im.reshape(self.nrows, self.ncols) * 8).astype(np.int8)
+        playerfield = raw.copy()
+        playerfield[raw == -1] = 9   # -1 in state_im means hidden, maps to 9 in playerfield
+        self.playerfield = playerfield
+        self.explosion = bool(np.any(raw == -2))
+        self.done = self.explosion
 
     def draw_state(self, state_im):
         state = state_im * 8.0
