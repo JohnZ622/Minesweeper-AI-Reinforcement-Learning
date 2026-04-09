@@ -59,9 +59,9 @@ class DQNAgent(object):
     def update_replay_memory(self, transition):
         self.replay_memory.append(transition)
 
-    def train(self, update_target):
+    def train(self, update_target, compute_td_errors=False):
         if len(self.replay_memory) < MEM_SIZE_MIN:
-            return
+            return None
 
         batch = random.sample(self.replay_memory, BATCH_SIZE)
 
@@ -72,6 +72,7 @@ class DQNAgent(object):
         future_qs_list = self.target_model(new_current_states, batch_size=len(new_current_states), verbose = 0).numpy()
 
         X,y = [], []
+        td_errors = []
 
         for i, (current_state, action, reward, new_current_state, done) in enumerate(batch):
             if not done:
@@ -81,7 +82,12 @@ class DQNAgent(object):
                 new_q = reward
 
             current_qs = current_qs_list[i]
+            old_q = current_qs[action]
             current_qs[action] = new_q
+
+            # Compute TD-error: |new_q - old_q|
+            td_error = abs(new_q - old_q)
+            td_errors.append(td_error)
 
             X.append(current_state)
             y.append(current_qs)
@@ -99,6 +105,10 @@ class DQNAgent(object):
 
         # decay epsilon
         self.epsilon = max(EPSILON_MIN, self.epsilon*EPSILON_DECAY)
+
+        if compute_td_errors:
+            return np.array(td_errors)
+        return None
 
     def load_model_and_replay_buffer(self, prompt: bool = True):
         n_clicks = 0

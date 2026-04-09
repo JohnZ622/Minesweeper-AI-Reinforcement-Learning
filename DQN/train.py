@@ -105,7 +105,8 @@ def main():
                     last_train_time = now
 
                     train_start = time.time()
-                    agent.train(update_target= (n_clicks % TRAIN_EVERY_N_CLICKS) % UPDATE_TARGET_EVERY_N_TRAININGS == 0) # update target every 5
+                    compute_td_errors = not episode % AGG_STATS_EVERY
+                    td_errors = agent.train(update_target= (n_clicks % TRAIN_EVERY_N_CLICKS) % UPDATE_TARGET_EVERY_N_TRAININGS == 0, compute_td_errors=compute_td_errors) # update target every 5
                     train_duration = time.time() - train_start
                     n_trains += 1
 
@@ -158,6 +159,9 @@ def main():
                     time_between_trains=time_between_trains,
                     train_duration=train_duration,
                     mine_hit_pct_in_replay=mine_hit_pct_in_replay)
+                if td_errors is not None:
+                    stats['td_error_mean'] = np.mean(td_errors)
+                    stats['td_error_max'] = np.max(td_errors)
                 if validation_states is not None:
                     max_q_stats = compute_max_q_stats(agent.model, validation_states)
                     stats['avg_max_q'] = max_q_stats[0]
