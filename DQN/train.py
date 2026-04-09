@@ -144,6 +144,8 @@ def main():
                 last_clicks_log_time = now
 
                 agent.tensorboard.step = n_clicks
+                buf = agent.replay_memory
+                mine_hit_pct_in_replay = round(sum(1 for t in buf if t[2] == -1 and t[4]) / len(buf), 4) if buf else 0.0
                 stats = dict(
                     progress_med = med_progress,
                     winrate = win_rate,
@@ -154,7 +156,8 @@ def main():
                     clicks_per_sec = clicks_per_sec,
                     trains_per_sec = trains_per_sec,
                     time_between_trains=time_between_trains,
-                    train_duration=train_duration)
+                    train_duration=train_duration,
+                    mine_hit_pct_in_replay=mine_hit_pct_in_replay)
                 if validation_states is not None:
                     max_q_stats = compute_max_q_stats(agent.model, validation_states)
                     stats['avg_max_q'] = max_q_stats[0]
