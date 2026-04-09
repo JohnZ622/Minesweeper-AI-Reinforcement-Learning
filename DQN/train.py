@@ -10,6 +10,7 @@ import tensorflow as tf
 from DQN_agent import *
 from eval_loop import start_eval_thread
 from common_constants import *
+from validation import *
 
 print("GPU Available: ", tf.config.list_physical_devices('GPU'))
 if tf.config.list_physical_devices('GPU') == []:
@@ -58,6 +59,8 @@ def main():
     eval_queue = start_eval_thread(
         params.model_name, agent.model, params.width, params.height, params.n_mines
     ) if params.eval_thread else None
+
+    validation_states = load_validation_states(env.nrows, env.ncols)
 
     progress_list, wins_list, ep_rewards, conditional_wins_list = [], [], [], []
     last_clicks_log = 0
@@ -141,7 +144,7 @@ def main():
                 last_clicks_log_time = now
 
                 agent.tensorboard.step = n_clicks
-                agent.tensorboard.update_stats(
+                stats = dict(
                     progress_med = med_progress,
                     winrate = win_rate,
                     cond_winrate = cond_win_rate,
@@ -152,6 +155,9 @@ def main():
                     trains_per_sec = trains_per_sec,
                     time_between_trains=time_between_trains,
                     train_duration=train_duration)
+                if validation_states is not None:
+                    stats['avg_max_q'] = compute_avg_max_q(agent.model, validation_states)
+                agent.tensorboard.update_stats(**stats)
 
 
                 print(

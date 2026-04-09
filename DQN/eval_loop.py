@@ -1,4 +1,3 @@
-import os
 import queue
 import threading
 import tensorflow as tf
@@ -6,8 +5,7 @@ import tensorflow as tf
 from minesweeper_env import *
 from my_tensorboard2 import *
 from common_constants import *
-
-VALIDATION_STATES_PATH = 'validation_states/states.npy'
+from validation import *
 
 def create_eval_tensorboard(model_name):
     return ModifiedTensorBoard(
@@ -21,11 +19,7 @@ class EvalWorker:
         self.eval_tensorboard = eval_tensorboard
 
         nrows, ncols = self.eval_env.nrows, self.eval_env.ncols
-        if os.path.exists(VALIDATION_STATES_PATH):
-            raw = np.load(VALIDATION_STATES_PATH)
-            self.validation_states = raw.reshape(-1, nrows, ncols, 1)
-        else:
-            self.validation_states = None
+        self.validation_states = load_validation_states(nrows, ncols)
 
     def run_policy_eval_and_post_stats(self, step):
         """Run EVAL_EPISODES greedy games and post stats to tensorboard."""
@@ -70,9 +64,7 @@ class EvalWorker:
         )
 
         if self.validation_states is not None:
-            q_values_batch = self.eval_model(self.validation_states).numpy()
-            avg_max_q = round(float(np.mean(np.max(q_values_batch, axis=1))), 4)
-            stats['eval_avg_max_q'] = avg_max_q
+            stats['eval_avg_max_q'] = compute_avg_max_q(self.eval_model, self.validation_states)
 
         self.eval_tensorboard.step = step
         self.eval_tensorboard.update_stats(**stats)
