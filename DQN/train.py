@@ -29,6 +29,8 @@ def parse_args():
                         help='Name of model')
     parser.add_argument('--visualize_training', action='store_true',
                         help='Visualize the training process', default=False)
+    parser.add_argument('--eval_thread', action='store_true',
+                        help='Run eval thread during training', default=False)
 
     return parser.parse_args()
 
@@ -54,7 +56,8 @@ def main():
     signal.signal(signal.SIGINT, save_and_exit)
 
     eval_queue = start_eval_thread(
-        params.model_name, agent.model, params.width, params.height, params.n_mines)
+        params.model_name, agent.model, params.width, params.height, params.n_mines
+    ) if params.eval_thread else None
 
     progress_list, wins_list, ep_rewards, conditional_wins_list = [], [], [], []
     last_clicks_log = 0
@@ -103,10 +106,11 @@ def main():
                     train_duration = time.time() - train_start
                     n_trains += 1
 
-                    try:
-                        eval_queue.put_nowait((agent.model.get_weights(), n_clicks))
-                    except queue.Full:
-                        pass  # eval still running, skip this update
+                    if eval_queue is not None:
+                        try:
+                            eval_queue.put_nowait((agent.model.get_weights(), n_clicks))
+                        except queue.Full:
+                            pass  # eval still running, skip this update
 
                 n_clicks += 1
 
