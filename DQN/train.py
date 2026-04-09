@@ -2,7 +2,7 @@ import argparse, signal, queue, time
 from tqdm import tqdm
 import os
 
-from gui_common import wait_for_click
+from gui_common import *
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
 import tensorflow as tf
@@ -56,7 +56,7 @@ def main():
     eval_queue = start_eval_thread(
         params.model_name, agent.model, params.width, params.height, params.n_mines)
 
-    progress_list, wins_list, ep_rewards = [], [], []
+    progress_list, wins_list, ep_rewards, conditional_wins_list = [], [], [], []
     last_clicks_log = 0
     last_trains_log = 0
     last_clicks_log_time = time.time()
@@ -74,6 +74,7 @@ def main():
             past_n_wins = env.n_wins
 
             done = False
+            episode_steps = 0
             while not done:
                 current_state = env.state_im
 
@@ -81,14 +82,15 @@ def main():
 
                 if (q_values is not None) and params.visualize_training:
                     env.plot_qvalues_and_next_action(action, q_values)
-                    wait_for_click()
+                    wait_for_user()
 
                 new_state, reward, done = env.step(action)
 
                 if params.visualize_training:
-                    wait_for_click()
+                    wait_for_user()
 
                 episode_reward += reward
+                episode_steps += 1
 
                 agent.update_replay_memory((current_state, action, reward, new_state, done))
                 if n_clicks % TRAIN_EVERY_N_CLICKS == 0:
@@ -111,10 +113,10 @@ def main():
             progress_list.append(env.n_progress) # n of non-guess moves
             ep_rewards.append(episode_reward)
 
-            if env.n_wins > past_n_wins:
-                wins_list.append(1)
-            else:
-                wins_list.append(0)
+            won = env.n_wins > past_n_wins
+            wins_list.append(1 if won else 0)
+            if episode_steps > MIN_STEPS_FOR_CONDITIONAL_WIN:
+                conditional_wins_list.append(won)
 
             if len(agent.replay_memory) < MEM_SIZE_MIN:
                 continue
@@ -123,6 +125,8 @@ def main():
                 med_progress = round(np.median(progress_list[-AGG_STATS_EVERY:]), 2)
                 win_rate = round(np.sum(wins_list[-AGG_STATS_EVERY:]) / AGG_STATS_EVERY, 2)
                 med_reward = round(np.median(ep_rewards[-AGG_STATS_EVERY:]), 2)
+                recent_cond = conditional_wins_list[-AGG_STATS_EVERY:]
+                cond_win_rate = round(np.mean(recent_cond), 2) if recent_cond else 0.0
 
                 now = time.time()
                 elapsed = now - last_clicks_log_time
@@ -136,6 +140,7 @@ def main():
                 agent.tensorboard.update_stats(
                     progress_med = med_progress,
                     winrate = win_rate,
+                    cond_winrate = cond_win_rate,
                     reward_med = med_reward,
                     learn_rate = agent.learn_rate,
                     epsilon = agent.epsilon,
@@ -152,8 +157,9 @@ def main():
                     f'Median progress: {med_progress}, '
                     f'Median reward: {med_reward}, '
                     f'Win rate: {win_rate}, '
+                    f'Conditional win rate: {cond_win_rate}, '
                     f'Time between trains: {time_between_trains:.2f}s, '
-                    f'Train duration: {train_duration:.2f}s'
+                    f'Train duration: {train_duration:.2f}s, '
                     f'Epsilon: {agent.epsilon:.4f}, '
                 )
 
