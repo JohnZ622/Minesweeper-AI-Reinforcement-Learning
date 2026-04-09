@@ -181,6 +181,12 @@ def main():
                     f'Time between trains: {time_between_trains:.2f}s, '
                     f'Train duration: {train_duration:.2f}s, '
                     f'Epsilon: {agent.epsilon:.4f}, '
+                    f'TD Error Mean: {stats["td_error_mean"]:.4f}, '
+                    f'TD Error Max: {stats["td_error_max"]:.4f}, '
+                    f'avg_max_q: {stats["avg_max_q"]:.4f}, '
+                    f'first_state_max_q: {stats["first_state_max_q"]:.4f}, '
+                    f'second_state_max_q: {stats["second_state_max_q"]:.4f}, '
+                    f'Mine hit % in replay: {mine_hit_pct_in_replay:.4f}'
                 )
 
             if not episode % SAVE_MODEL_EVERY:
