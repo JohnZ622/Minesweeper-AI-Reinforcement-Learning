@@ -11,6 +11,16 @@
 
 20391b4b
 - batch size back to 512
+- after about step 11 million or so, changed code so that epsilon is 0.01
+- also update target model every 5 trainings
+- after that, it went to shit. median progress went down from 15 to 8between 11.5 million step to 13.5 million steps.
+- not sure about loss, it seems that i didn't previously log loss so i don't know.
+- winrate dropped from 0.55 to 0.22 in the same time
+- the theory is that, when epsilon is 0.01, you are doing on-policy learning. the model's training data is mostly good clicks. so it starts forgetting about the bad clicks (on the mine)
+- at 13.4 million, start computing td-error (avg and max)
+- see that td-error max is 1.3 and td-mean is 0.05.  also mine hit % in replay is 0.08
+- changed epsilon_min to 0.1, no longer override epsilon to 0.01, epsilon decay is 0.99975
+
 
 so i have a reinforcement learning program that is learning to play minesweeper with a neural net:
 
