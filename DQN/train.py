@@ -6,6 +6,7 @@ from gui_common import *
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
 import tensorflow as tf
+from tensorboard.plugins.hparams import api as hp
 
 from DQN_agent import *
 from eval_loop import start_eval_thread
@@ -44,8 +45,24 @@ def main():
     env = MinesweeperEnv(params.width, params.height, params.n_mines, gui=params.visualize_training)
     agent = DQNAgent(env, params.model_name)
 
+    # Log hyperparameters to TensorBoard
+    hparams = {
+        'epsilon_min': EPSILON_MIN,
+        'epsilon_init': EPSILON_INIT,
+        'epsilon_decay': EPSILON_DECAY,
+        'learn_rate': LEARN_RATE,
+        'learn_decay': LEARN_DECAY,
+        'learn_min': LEARN_MIN,
+        'discount': DISCOUNT,
+        'batch_size': BATCH_SIZE,
+        'conv_units': CONV_UNITS,
+        'dense_units': DENSE_UNITS,
+    }
+    with agent.tensorboard.writer.as_default():
+        hp.hparams(hparams)
+        agent.tensorboard.writer.flush()
+
     n_clicks = agent.load_model_and_replay_buffer(prompt=True)
-    agent.epsilon = 0.01
 
     stop_training = False
 
