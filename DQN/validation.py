@@ -11,7 +11,7 @@ def load_validation_states(nrows, ncols):
     return None
 
 
-def compute_avg_max_q(model, validation_states):
+def compute_max_q_stats(model, validation_states):
     """Compute average max Q-value over validation states."""
-    q_values_batch = model(validation_states).numpy()
-    return round(float(np.mean(np.max(q_values_batch, axis=1))), 4)
+    q_values_batch_maxes = np.max(model(validation_states).numpy(), axis=1)
+    return [round(float(np.mean(q_values_batch_maxes)), 4), q_values_batch_maxes[0], q_values_batch_maxes[1]] # use first two states for measurement

@@ -156,7 +156,10 @@ def main():
                     time_between_trains=time_between_trains,
                     train_duration=train_duration)
                 if validation_states is not None:
-                    stats['avg_max_q'] = compute_avg_max_q(agent.model, validation_states)
+                    max_q_stats = compute_max_q_stats(agent.model, validation_states)
+                    stats['avg_max_q'] = max_q_stats[0]
+                    stats['first_state_max_q' ]  = max_q_stats[1]
+                    stats['second_state_max_q' ]  = max_q_stats[2]
                 agent.tensorboard.update_stats(**stats)
 
 

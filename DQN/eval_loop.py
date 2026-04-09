@@ -64,7 +64,10 @@ class EvalWorker:
         )
 
         if self.validation_states is not None:
-            stats['eval_avg_max_q'] = compute_avg_max_q(self.eval_model, self.validation_states)
+            max_q_stats = compute_max_q_stats(self.eval_model, self.validation_states)
+            stats['eval_avg_max_q'] = max_q_stats[0]
+            stats['eval_first_state_max_q' ]  = max_q_stats[1]
+            stats['eval_second_state_max_q' ]  = max_q_stats[2]
 
         self.eval_tensorboard.step = step
         self.eval_tensorboard.update_stats(**stats)
