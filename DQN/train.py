@@ -1,4 +1,4 @@
-import argparse, signal, queue, time
+import argparse, signal, queue, time, collections
 from tqdm import tqdm
 import os
 
@@ -9,9 +9,11 @@ import tensorflow as tf
 from tensorboard.plugins.hparams import api as hp
 
 from DQN_agent import *
-from eval_loop import start_eval_thread
+from eval_loop import *
 from common_constants import *
 from validation import *
+
+EVAL_INTERVAL_SECONDS = 5 * 60
 
 print("GPU Available: ", tf.config.list_physical_devices('GPU'))
 if tf.config.list_physical_devices('GPU') == []:
@@ -32,7 +34,7 @@ def parse_args():
     parser.add_argument('--visualize_training', action='store_true',
                         help='Visualize the training process', default=False)
     parser.add_argument('--eval_thread', action='store_true',
-                        help='Run eval thread during training', default=False)
+                        help='Run eval thread during training (otherwise just do evaluation iniline)', default=False)
 
     return parser.parse_args()
 
@@ -73,17 +75,27 @@ def main():
 
     signal.signal(signal.SIGINT, save_and_exit)
 
-    eval_queue = start_eval_thread(
-        params.model_name, agent.model, params.width, params.height, params.n_mines
-    ) if params.eval_thread else None
+    if params.eval_thread:
+        eval_queue = start_eval_thread(
+            params.model_name, agent.model, params.width, params.height, params.n_mines
+        )
+        inline_eval_worker = None
+    else:
+        eval_queue = None
+        eval_tensorboard = create_eval_tensorboard(params.model_name)
+        inline_eval_worker = EvalWorker(agent.model, (params.width, params.height, params.n_mines), eval_tensorboard)
 
     validation_states = load_validation_states(env.nrows, env.ncols)
 
-    progress_list, wins_list, ep_rewards, conditional_wins_list = [], [], [], []
+    progress_list = collections.deque(maxlen=AGG_STATS_EVERY)
+    wins_list = collections.deque(maxlen=AGG_STATS_EVERY)
+    ep_rewards = collections.deque(maxlen=AGG_STATS_EVERY)
+    conditional_wins_list = collections.deque(maxlen=AGG_STATS_EVERY)
     last_clicks_log = 0
     last_trains_log = 0
     last_clicks_log_time = time.time()
     last_train_time = time.time()
+    last_eval_time = time.time()
 
     episode = 0
     n_trains = 0
@@ -146,12 +158,18 @@ def main():
             if len(agent.replay_memory) < MEM_SIZE_MIN:
                 continue
 
+            if inline_eval_worker is not None:
+                now = time.time()
+                if now - last_eval_time >= EVAL_INTERVAL_SECONDS:
+                    inline_eval_worker.eval_model.set_weights(agent.model.get_weights())
+                    inline_eval_worker.run_policy_eval_and_post_stats(n_clicks)
+                    last_eval_time = now
+
             if not episode % AGG_STATS_EVERY:
-                med_progress = round(np.median(progress_list[-AGG_STATS_EVERY:]), 2)
-                win_rate = round(np.sum(wins_list[-AGG_STATS_EVERY:]) / AGG_STATS_EVERY, 2)
-                med_reward = round(np.median(ep_rewards[-AGG_STATS_EVERY:]), 2)
-                recent_cond = conditional_wins_list[-AGG_STATS_EVERY:]
-                cond_win_rate = round(np.mean(recent_cond), 2) if recent_cond else 0.0
+                med_progress = round(np.median(progress_list), 2)
+                win_rate = round(np.sum(wins_list) / AGG_STATS_EVERY, 2)
+                med_reward = round(np.median(ep_rewards), 2)
+                cond_win_rate = round(np.mean(conditional_wins_list), 2) if conditional_wins_list else 0.0
 
                 now = time.time()
                 elapsed = now - last_clicks_log_time
