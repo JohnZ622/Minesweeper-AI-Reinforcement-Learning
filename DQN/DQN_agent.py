@@ -36,6 +36,7 @@ class DQNAgent(object):
         self.target_model.set_weights(self.model.get_weights())
 
         self.replay_memory = deque(maxlen=MEM_SIZE)
+        self.n_trains = 0
 
         self.tensorboard = ModifiedTensorBoard(
             log_dir=f'logs/{model_name}', profile_batch=0, update_freq=50)
@@ -92,9 +93,23 @@ class DQNAgent(object):
             X.append(current_state)
             y.append(current_qs)
 
-        self.model.fit(np.array(X), np.array(y), batch_size=BATCH_SIZE,
-                       shuffle=False, verbose=0, callbacks=[self.tensorboard]\
-                       if done else None)
+        X_arr = np.array(X)
+        y_arr = np.array(y)
+
+        if self.n_trains % GRAD_LOG_EVERY_N_TRAINS == 0:
+            with tf.GradientTape() as tape:
+                preds = self.model(X_arr, training=True)
+                loss = self.model.compiled_loss(y_arr, preds)
+            gradients = tape.gradient(loss, self.model.trainable_variables)
+            self.model.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
+            self.model.compiled_metrics.update_state(y_arr, preds)
+        else:
+            gradients = None
+            self.model.fit(X_arr, y_arr, batch_size=BATCH_SIZE,
+                           shuffle=False, verbose=0, callbacks=[self.tensorboard]\
+                           if done else None)
+
+        self.n_trains += 1
 
         # updating to determine if we want to update target_model yet
         if update_target:
@@ -107,8 +122,8 @@ class DQNAgent(object):
         self.epsilon = max(EPSILON_MIN, self.epsilon*EPSILON_DECAY)
 
         if compute_td_errors:
-            return np.array(td_errors)
-        return None
+            return np.array(td_errors), gradients
+        return None, gradients
 
     def load_model_and_replay_buffer(self, prompt: bool = True):
         n_clicks = 0

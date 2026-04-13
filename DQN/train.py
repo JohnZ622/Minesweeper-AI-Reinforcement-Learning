@@ -106,10 +106,10 @@ def main():
 
             env.reset()
             episode_reward = 0
+            episode_steps = 0
             past_n_wins = env.n_wins
 
             done = False
-            episode_steps = 0
             while not done:
                 current_state = env.state_im
 
@@ -120,6 +120,7 @@ def main():
                     wait_for_user()
 
                 new_state, reward, done = env.step(action)
+                n_clicks += 1
 
                 if params.visualize_training:
                     wait_for_user()
@@ -135,17 +136,23 @@ def main():
 
                     train_start = time.time()
                     compute_td_errors = not episode % AGG_STATS_EVERY
-                    td_errors = agent.train(update_target= (n_clicks % TRAIN_EVERY_N_CLICKS) % UPDATE_TARGET_EVERY_N_TRAININGS == 0, compute_td_errors=compute_td_errors) # update target every 5
+                    td_errors, gradients = agent.train(update_target= (n_clicks % TRAIN_EVERY_N_CLICKS) % UPDATE_TARGET_EVERY_N_TRAININGS == 0, compute_td_errors=compute_td_errors) # update target every 5
                     train_duration = time.time() - train_start
-                    n_trains += 1
+                    n_trains = agent.n_trains
+                    if gradients is not None:
+                        with agent.tensorboard.writer.as_default():
+                            for var, grad in zip(agent.model.trainable_variables, gradients):
+                                if grad is not None:
+                                    # tag = var.path.replace(':', '_').replace('/', '_')
+                                    # print(var.path)
+                                    tf.summary.histogram(f'gradients/{var.path}', grad, step=n_clicks)
+                            agent.tensorboard.writer.flush()
 
                     if eval_queue is not None:
                         try:
                             eval_queue.put_nowait((agent.model.get_weights(), n_clicks))
                         except queue.Full:
                             pass  # eval still running, skip this update
-
-                n_clicks += 1
 
             progress_list.append(env.n_progress) # n of non-guess moves
             ep_rewards.append(episode_reward)
