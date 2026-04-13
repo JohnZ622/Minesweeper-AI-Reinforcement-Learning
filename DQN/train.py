@@ -65,6 +65,11 @@ def main():
         agent.tensorboard.writer.flush()
 
     n_clicks = agent.load_model_and_replay_buffer(prompt=True)
+    agent.model.optimizer.learning_rate.assign(LEARN_RATE)  # Ensure the loaded model has the correct learning rate
+
+    # Verify it changed
+    print(f"New Learning Rate: {agent.model.optimizer.learning_rate.numpy()}")
+    print(agent.model.summary())
 
     stop_training = False
 
