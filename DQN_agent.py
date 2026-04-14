@@ -17,7 +17,7 @@ from DQN import *
 from common_constants import *
 
 # Default model name
-MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_minlr{LEARN_MIN}_20391b4b'
+MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_20391b4b'
 
 class DQNAgent(object):
     def __init__(self, env, model_name, conv_units=CONV_UNITS, dense_units=DENSE_UNITS):
@@ -114,9 +114,6 @@ class DQNAgent(object):
         # updating to determine if we want to update target_model yet
         if update_target:
             self.target_model.set_weights(self.model.get_weights())
-
-        # decay learn_rate
-        self.learn_rate = max(LEARN_MIN, self.learn_rate*LEARN_DECAY)
 
         # decay epsilon
         self.epsilon = max(EPSILON_MIN, self.epsilon*EPSILON_DECAY)

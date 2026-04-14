@@ -9,8 +9,6 @@ MEM_SIZE_MIN = 1_000 # min number of moves in replay buffer
 # Learning settings
 BATCH_SIZE = 512
 LEARN_RATE = 0.01
-LEARN_DECAY = 0.99975
-LEARN_MIN = 0.001
 DISCOUNT = 0.1 #gamma
 TRAIN_EVERY_N_CLICKS = 10
 UPDATE_TARGET_EVERY_N_TRAININGS = 5
