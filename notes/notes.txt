@@ -20,6 +20,19 @@
 - at 13.4 million, start computing td-error (avg and max)
 - see that td-error max is 1.3 and td-mean is 0.05.  also mine hit % in replay is 0.08
 - changed epsilon_min to 0.1, no longer override epsilon to 0.01, epsilon decay is 0.99975
+- so the cond winrate went up from 0.03 to 0.18 as epsilon fell but quickly the conditional winrate capped at 0.2 as epsilon reached 0.1
+- restart run with a lower epsilon decay of 0.999975
+- unconditional win rate climbed back to 10% but it seems to be slow.
+- seems that when epsilon hit 0.1 and stayed constant, median progress and winrate flat-lined. (around 16 million steps). so i'm going to raise epsilon decay to 0.9999975
+- start another training at 16.5 million steps
+- remember that cond_winrate, progress_med is calculated with exploration
+- stopped at 17.5M steps.
+- until 20M steps, eval_avg_max_q collapsed to 0
+- until 31M steps, the eval_avg_max_q cycled up to 0.35 but collapsed again and cycled again.
+- set learning rate to 0.00003
+- begin logging gradient
+- gradient updates at final layer's kernel weights are 10^-6. final layer's bias is 10^-4.  That's too small.
+- set learning rate to 0.0003, also resets Adam momentum after loading model
 
 
 so i have a reinforcement learning program that is learning to play minesweeper with a neural net:
