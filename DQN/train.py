@@ -13,7 +13,7 @@ from eval_loop import *
 from common_constants import *
 from validation import *
 
-EVAL_INTERVAL_SECONDS = 5 * 60
+EVAL_INTERVAL_SECONDS = 1 * 60
 
 print("GPU Available: ", tf.config.list_physical_devices('GPU'))
 if tf.config.list_physical_devices('GPU') == []:
@@ -53,8 +53,6 @@ def main():
         'epsilon_init': EPSILON_INIT,
         'epsilon_decay': EPSILON_DECAY,
         'learn_rate': LEARN_RATE,
-        'learn_decay': LEARN_DECAY,
-        'learn_min': LEARN_MIN,
         'discount': DISCOUNT,
         'batch_size': BATCH_SIZE,
         'conv_units': CONV_UNITS,
@@ -66,6 +64,8 @@ def main():
 
     n_clicks = agent.load_model_and_replay_buffer(prompt=True)
     agent.model.optimizer.learning_rate.assign(LEARN_RATE)  # Ensure the loaded model has the correct learning rate
+    for var in agent.model.optimizer.variables:
+        var.assign(tf.zeros_like(var))  # Reset optimizer state variables to avoid issues with loaded state
 
     # Verify it changed
     print(f"New Learning Rate: {agent.model.optimizer.learning_rate.numpy()}")
@@ -144,6 +144,15 @@ def main():
                     td_errors, gradients = agent.train(update_target= (n_clicks % TRAIN_EVERY_N_CLICKS) % UPDATE_TARGET_EVERY_N_TRAININGS == 0, compute_td_errors=compute_td_errors) # update target every 5
                     train_duration = time.time() - train_start
                     n_trains = agent.n_trains
+
+                    if n_trains % GRAD_LOG_EVERY_N_TRAINS == 0:
+                        with agent.tensorboard.writer.as_default():
+                            for var in agent.model.trainable_variables:
+                                # tag = var.path.replace(':', '_').replace('/', '_')
+                                # print(var.path)
+                                tf.summary.histogram(f'weights/{var.path}', var, step=n_clicks)
+                            agent.tensorboard.writer.flush()
+
                     if gradients is not None:
                         with agent.tensorboard.writer.as_default():
                             for var, grad in zip(agent.model.trainable_variables, gradients):
