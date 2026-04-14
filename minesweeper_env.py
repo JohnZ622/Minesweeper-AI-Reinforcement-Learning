@@ -3,10 +3,12 @@ import random
 import numpy as np
 import pandas as pd
 
+from common_constants import REWARD_WIN, REWARD_LOSE, REWARD_PROGRESS, REWARD_GUESS, REWARD_NO_PROGRESS
+
 class MinesweeperEnv(object):
     def __init__(self, width, height, n_mines,
         # based on https://github.com/jakejhansen/minesweeper_solver
-        rewards={'win':1, 'lose':-1, 'progress':0.3, 'guess':-0.3, 'no_progress' : -0.3}, gui=False):
+        rewards={'win': REWARD_WIN, 'lose': REWARD_LOSE, 'progress': REWARD_PROGRESS, 'guess': REWARD_GUESS, 'no_progress': REWARD_NO_PROGRESS}, gui=False):
         self.nrows, self.ncols = width, height
         self.ntiles = self.nrows * self.ncols
         self.n_mines = n_mines

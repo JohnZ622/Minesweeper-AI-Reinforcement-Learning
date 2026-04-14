@@ -57,6 +57,11 @@ def main():
         'batch_size': BATCH_SIZE,
         'conv_units': CONV_UNITS,
         'dense_units': DENSE_UNITS,
+        'reward_win': REWARD_WIN,
+        'reward_lose': REWARD_LOSE,
+        'reward_progress': REWARD_PROGRESS,
+        'reward_guess': REWARD_GUESS,
+        'reward_no_progress': REWARD_NO_PROGRESS,
     }
     with agent.tensorboard.writer.as_default():
         hp.hparams(hparams)

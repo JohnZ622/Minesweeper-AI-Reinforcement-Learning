@@ -21,6 +21,13 @@ EPSILON_MIN = 0.01
 # Logging settings
 GRAD_LOG_EVERY_N_TRAINS = 20  # log gradient histograms every N training steps
 
+# Reward settings
+REWARD_WIN = 1
+REWARD_LOSE = -1
+REWARD_PROGRESS = 0.3
+REWARD_GUESS = -0.3
+REWARD_NO_PROGRESS = -0.3
+
 # DQN settings
 CONV_UNITS = 64 # number of neurons in each conv layer
 DENSE_UNITS = 512 # number of neurons in fully connected dense layer
