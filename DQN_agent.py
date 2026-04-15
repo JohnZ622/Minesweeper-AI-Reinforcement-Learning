@@ -60,7 +60,7 @@ class DQNAgent(object):
     def update_replay_memory(self, transition):
         self.replay_memory.append(transition)
 
-    def train(self, update_target, compute_td_errors=False):
+    def train(self, update_target, n_clicks, compute_td_errors=False, loss_heatmap=False):
         if len(self.replay_memory) < MEM_SIZE_MIN:
             return None
 
@@ -85,7 +85,7 @@ class DQNAgent(object):
             current_qs = current_qs_list[i]
             old_q = current_qs[action]
             current_qs[action] = new_q
-
+    
             # Compute TD-error: |new_q - old_q|
             td_error = abs(new_q - old_q)
             td_errors.append(td_error)
@@ -93,7 +93,9 @@ class DQNAgent(object):
             X.append(current_state)
             y.append(current_qs)
 
+        # Shape: (Batch_size, nrows, ncols, 1), it's the state vector
         X_arr = np.array(X)
+        # Shape: (Batch_size, n_actions), it's the q value vector
         y_arr = np.array(y)
 
         if self.n_trains % GRAD_LOG_EVERY_N_TRAINS == 0:
@@ -103,6 +105,17 @@ class DQNAgent(object):
             gradients = tape.gradient(loss, self.model.trainable_variables)
             self.model.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
             self.model.compiled_metrics.update_state(y_arr, preds)
+
+            with self.tensorboard.writer.as_default():
+                tf.summary.scalar('loss', loss, step=n_clicks)
+                tf.summary.histogram('td_errors', td_errors, step=n_clicks)
+                if loss_heatmap:
+                    loss_vector = tf.square(y_arr - preds)
+                    loss_min = tf.reduce_min(loss_vector)
+                    loss_max = tf.reduce_max(loss_vector)
+                    normalized_loss = (loss_vector - loss_min) / (loss_max - loss_min + 1e-8) # add small value to avoid division by zero
+                    heatmap_tensor = tf.reshape(normalized_loss, (-1, 9, 9, 1)) # reshape to (batch_size, height, width, channels)
+                    tf.summary.image('loss_heatmap', heatmap_tensor, step=n_clicks, max_outputs=3)
         else:
             gradients = None
             self.model.fit(X_arr, y_arr, batch_size=BATCH_SIZE,
@@ -156,6 +169,7 @@ class DQNAgent(object):
         if os.path.exists(step_path):
             with open(step_path, 'r') as f:
                 n_clicks = int(f.read().strip())
+            tf.summary.experimental.set_step(n_clicks)
             print(f'Loaded step counter: {n_clicks}')
 
         return n_clicks
