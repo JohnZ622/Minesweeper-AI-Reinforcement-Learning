@@ -1,14 +1,16 @@
 """
 Visualize states saved by generate_states.py.
 
-Loads a .npy file of state_im arrays and renders each one using the
-MinesweeperEnv GUI. Press any key or click to advance to the next state.
+Loads a .npy file of state_im arrays, or a .pkl replay buffer saved by
+DQN_agent.py, and renders each state using the MinesweeperEnv GUI.
+Press any key or click to advance to the next state.
 
 Usage:
-    python visualize_states.py [states.npy] [--width 9] [--height 9] [--n_mines 10]
+    python visualize_states.py [states.npy|replay.pkl] [--width 9] [--height 9] [--n_mines 10]
 """
 
 import argparse
+import pickle
 import sys
 import numpy as np
 import pygame
@@ -18,18 +20,32 @@ from minesweeper_env import MinesweeperEnv
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('input', nargs='?', default='validation_states/states.npy')
+    # parser.add_argument('input', nargs='?', default='validation_states/states.npy')
+    parser.add_argument('input', nargs='?', default='replay/conv64x4_dense512x2_y0.1_20391b4b.pkl')
     parser.add_argument('--width', type=int, default=9)
     parser.add_argument('--height', type=int, default=9)
     parser.add_argument('--n_mines', type=int, default=10)
     return parser.parse_args()
 
 
+def load_states(path):
+    if path.endswith('.pkl'):
+        with open(path, 'rb') as f:
+            replay_memory = pickle.load(f)
+        # Each entry is (current_state, action, reward, new_state, done)
+        states = [transition[0] for transition in replay_memory]
+        print(f'Loaded {len(states)} states from {path}')
+        return states
+    else:
+        states = np.load(path)
+        print(f'Loaded {len(states)} states from {path}  (shape: {states.shape})')
+        return states
+
+
 def main():
     args = parse_args()
 
-    states = np.load(args.input)
-    print(f'Loaded {len(states)} states from {args.input}  (shape: {states.shape})')
+    states = load_states(args.input)
 
     env = MinesweeperEnv(args.width, args.height, args.n_mines, gui=True)
 
