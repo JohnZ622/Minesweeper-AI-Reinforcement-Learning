@@ -37,6 +37,8 @@ def parse_args():
                         help='Run eval thread during training (otherwise just do evaluation iniline)', default=False)
     parser.add_argument('--loss_heatmap', action='store_true',
                         help='Log loss heatmap to TensorBoard during training', default=False)
+    parser.add_argument('--log_last_layer_input', action='store_true',
+                        help='Log last layer input activations to TensorBoard during training', default=False)
 
     return parser.parse_args()
 
@@ -47,7 +49,7 @@ SAVE_MODEL_EVERY = 10_000 # save model and replay every 10,000 episodes
 
 def main():
     env = MinesweeperEnv(params.width, params.height, params.n_mines, gui=params.visualize_training)
-    agent = DQNAgent(env, params.model_name)
+    agent = DQNAgent(env, params.model_name, log_last_layer_input=params.log_last_layer_input)
 
     # Log hyperparameters to TensorBoard
     hparams = {

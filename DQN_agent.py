@@ -20,7 +20,7 @@ from common_constants import *
 MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_20391b4b'
 
 class DQNAgent(object):
-    def __init__(self, env, model_name, conv_units=CONV_UNITS, dense_units=DENSE_UNITS):
+    def __init__(self, env, model_name, conv_units=CONV_UNITS, dense_units=DENSE_UNITS, log_last_layer_input=False):
         self.env = env
         self.model_name = model_name
 
@@ -37,6 +37,12 @@ class DQNAgent(object):
 
         self.replay_memory = deque(maxlen=MEM_SIZE)
         self.n_trains = 0
+        self.log_last_layer_input = log_last_layer_input
+        if log_last_layer_input:
+            self._last_layer_input_model = tf.keras.Model(
+                inputs=self.model.inputs, outputs=self.model.layers[-2].output)
+        else:
+            self._last_layer_input_model = None
 
         self.tensorboard = ModifiedTensorBoard(
             log_dir=f'logs/{model_name}', profile_batch=0, update_freq=50)
@@ -109,6 +115,9 @@ class DQNAgent(object):
             with self.tensorboard.writer.as_default():
                 tf.summary.scalar('loss', loss, step=n_clicks)
                 tf.summary.histogram('td_errors', td_errors, step=n_clicks)
+                if self.log_last_layer_input:
+                    last_layer_inputs = self._last_layer_input_model(X_arr)
+                    tf.summary.histogram('last_layer_input', last_layer_inputs, step=n_clicks)
                 if loss_heatmap:
                     loss_vector = tf.square(y_arr - preds)
                     loss_min = tf.reduce_min(loss_vector)
@@ -150,6 +159,9 @@ class DQNAgent(object):
                 from keras.models import load_model
                 self.model = load_model(model_path)
                 self.target_model = load_model(model_path)
+                if self.log_last_layer_input:
+                    self._last_layer_input_model = tf.keras.Model(
+                        inputs=self.model.inputs, outputs=self.model.layers[-2].output)
                 print(f'Loaded model from {model_path}')
             else:
                 print('Model will be overwritten.')
