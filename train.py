@@ -149,7 +149,7 @@ def main():
                     last_train_time = now
 
                     train_start = time.time()
-                    compute_td_errors = not episode % AGG_STATS_EVERY
+                    compute_td_errors = n_trains % GRAD_LOG_EVERY_N_TRAINS == 0
                     update_target= (n_clicks % TRAIN_EVERY_N_CLICKS) % UPDATE_TARGET_EVERY_N_TRAININGS == 0
                     td_errors, gradients = agent.train(update_target=update_target, n_clicks=n_clicks, compute_td_errors=compute_td_errors, loss_heatmap=params.loss_heatmap) # update target every 5
                     train_duration = time.time() - train_start
@@ -171,6 +171,14 @@ def main():
                                     # print(var.path)
                                     tf.summary.histogram(f'gradients/{var.path}', grad, step=n_clicks)
                             agent.tensorboard.writer.flush()
+
+                    if td_errors is not None:
+                        stats = dict(
+                            td_error_mean = np.mean(td_errors),
+                            td_error_max = np.max(td_errors),
+                        )
+                        agent.tensorboard.step = n_clicks
+                        agent.tensorboard.update_stats(**stats)
 
                     if eval_queue is not None:
                         try:
@@ -225,9 +233,6 @@ def main():
                     time_between_trains=time_between_trains,
                     train_duration=train_duration,
                     mine_hit_pct_in_replay=mine_hit_pct_in_replay)
-                if td_errors is not None:
-                    stats['td_error_mean'] = np.mean(td_errors)
-                    stats['td_error_max'] = np.max(td_errors)
                 if validation_states is not None:
                     max_q_stats = compute_max_q_stats(agent.model, validation_states)
                     stats['avg_max_q'] = max_q_stats[0]
