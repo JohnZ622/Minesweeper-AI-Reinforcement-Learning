@@ -17,7 +17,7 @@ from DQN import *
 from common_constants import *
 
 # Default model name
-MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_20391b4b'
+MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_b2a7dff'
 
 class DQNAgent(object):
     def __init__(self, env, model_name, conv_units=CONV_UNITS, dense_units=DENSE_UNITS, log_last_layer_input=False):
@@ -27,6 +27,9 @@ class DQNAgent(object):
         # Deep Q-learning Parameters
         self.learn_rate = LEARN_RATE
         self.epsilon = EPSILON_INIT
+        
+        self.target_update_counter = 0
+
         self.model = create_dqn(
             self.learn_rate, self.env.state_im.shape, self.env.ntiles, conv_units, dense_units)
 
@@ -66,9 +69,9 @@ class DQNAgent(object):
     def update_replay_memory(self, transition):
         self.replay_memory.append(transition)
 
-    def train(self, update_target, n_clicks, compute_td_errors=False, loss_heatmap=False):
+    def train(self, done, n_clicks, compute_td_errors=False, loss_heatmap=False):
         if len(self.replay_memory) < MEM_SIZE_MIN:
-            return None
+            return None, None
 
         batch = random.sample(self.replay_memory, BATCH_SIZE)
 
@@ -134,8 +137,12 @@ class DQNAgent(object):
         self.n_trains += 1
 
         # updating to determine if we want to update target_model yet
-        if update_target:
+        if done:
+            self.target_update_counter += 1
+
+        if self.target_update_counter > UPDATE_TARGET_EVERY_N_EPISODES:
             self.target_model.set_weights(self.model.get_weights())
+            self.target_update_counter = 0
 
         # decay epsilon
         self.epsilon = max(EPSILON_MIN, self.epsilon*EPSILON_DECAY)

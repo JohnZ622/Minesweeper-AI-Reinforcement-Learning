@@ -33,14 +33,17 @@
 - begin logging gradient
 - gradient updates at final layer's kernel weights are 10^-6. final layer's bias is 10^-4.  That's too small.
 - set learning rate to 0.0003, also resets Adam momentum after loading model
+- loss is very small, 0.003, because most Q values other than the one that we just took action at are correct
+- i checked the output of second last layer (DENSE_UNIT number of neurons).  All neurons except for one (neuron 200th (0th based index)) is just outputting 0.  This is post-activation.  So they must be stuck in the negative region of ReLU function.
+- found a bug where learning rate is set to 0 by accident. fixed
+- but kernel gradient is still extremely small, so kernel weights basically don't move.
+- bias weights move slowly
+- eval avg max q also doesn't move
 
-
-so i have a reinforcement learning program that is learning to play minesweeper with a neural net:
-
-I explore state using "current model", generating transitions into the replay buffer. 50000 entries.
-After 500 new transitions generated, I train the model.
-I either train using a batch of 64 or a batch of 512.
-Adam optimizer with learning rate 0.01 and epsilon 1e-4
-
-When I train with batch size 64, the evaluation win rate stays at 0 after 20-30M explorations.
-If I train with batch 512, performance is much better. win rate can go to 55% after 4 M explorations.
+e5dad787:
+- bias weights are moving significantly
+- kernel gradient has slightly higher variance and the weights are still moving slowly but at least moves a bit
+- the last layer input are no longer all zeros, there are a significant number of non-zeroes. exactly 212 out of 512 (steps 30000 to 70k)
+- by 80k steps, eval progress avg moved around 6, eval_avg_max_q moved to 0.7 and steady, loss went down to 4*10^-4, gradients became pretty narrow
+- then i changed epsilon, start at 0.9, decay at 0.99995, min 0.2
+- most of the kernel parameters haven't changed except for dense_2, it became bimodal

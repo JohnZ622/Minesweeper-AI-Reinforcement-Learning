@@ -13,8 +13,6 @@ from eval_loop import *
 from common_constants import *
 from validation import *
 
-EVAL_INTERVAL_SECONDS = 1 * 60
-
 print("GPU Available: ", tf.config.list_physical_devices('GPU'))
 if tf.config.list_physical_devices('GPU') == []:
     print("No GPU detected. Training may be slow.")
@@ -34,11 +32,11 @@ def parse_args():
     parser.add_argument('--visualize_training', action='store_true',
                         help='Visualize the training process', default=False)
     parser.add_argument('--eval_thread', action='store_true',
-                        help='Run eval thread during training (otherwise just do evaluation iniline)', default=False)
+                        help='Run eval thread during training (otherwise just do evaluation inline)', default=False)
     parser.add_argument('--loss_heatmap', action='store_true',
                         help='Log loss heatmap to TensorBoard during training', default=False)
     parser.add_argument('--log_last_layer_input', action='store_true',
-                        help='Log last layer input activations to TensorBoard during training', default=False)
+                        help='Log last layer input activations to TensorBoard during training', default=True)
 
     return parser.parse_args()
 
@@ -150,8 +148,8 @@ def main():
 
                     train_start = time.time()
                     compute_td_errors = n_trains % GRAD_LOG_EVERY_N_TRAINS == 0
-                    update_target= (n_clicks % TRAIN_EVERY_N_CLICKS) % UPDATE_TARGET_EVERY_N_TRAININGS == 0
-                    td_errors, gradients = agent.train(update_target=update_target, n_clicks=n_clicks, compute_td_errors=compute_td_errors, loss_heatmap=params.loss_heatmap) # update target every 5
+                    # update_target = n_trains % UPDATE_TARGET_EVERY_N_TRAININGS == 0
+                    td_errors, gradients = agent.train(done, n_clicks=n_clicks, compute_td_errors=compute_td_errors, loss_heatmap=params.loss_heatmap) # update target every 5
                     train_duration = time.time() - train_start
                     n_trains = agent.n_trains
 
@@ -185,6 +183,7 @@ def main():
                             eval_queue.put_nowait((agent.model.get_weights(), n_clicks))
                         except queue.Full:
                             pass  # eval still running, skip this update
+            # end of episode
 
             progress_list.append(env.n_progress) # n of non-guess moves
             ep_rewards.append(episode_reward)
@@ -253,11 +252,6 @@ def main():
                     f'Train duration: {train_duration:.2f}s, '
                     f'Epsilon: {agent.epsilon:.4f}, '
                 )
-                if td_errors is not None:
-                    print_msg += (
-                        f'TD Error Mean: {stats["td_error_mean"]:.4f}, '
-                        f'TD Error Max: {stats["td_error_max"]:.4f}, '
-                    )
                 if validation_states is not None:
                     print_msg += (
                         f'avg_max_q: {stats["avg_max_q"]:.4f}, '
