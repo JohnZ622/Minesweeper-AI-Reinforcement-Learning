@@ -33,7 +33,8 @@ class EvalWorker:
             q_values[board != -0.125] = np.min(q_values)
             return np.argmax(q_values)
 
-        total_progress, total_wins, total_guesses = 0, 0, 0
+        total_wins, total_guesses = 0, 0
+        progress_list = []
         conditional_wins = []
         for _ in range(EVAL_EPISODES):
             self.eval_env.reset()
@@ -44,17 +45,20 @@ class EvalWorker:
                 _, _, done = self.eval_env.step(greedy_action(self.eval_env.state_im))
                 steps += 1
             won = self.eval_env.n_wins > past_wins
-            total_progress += self.eval_env.n_progress
+            progress_list.append(self.eval_env.n_progress)
             total_guesses += self.eval_env.n_guesses
             if won:
                 total_wins += 1
             if steps > MIN_STEPS_FOR_CONDITIONAL_WIN:
                 conditional_wins.append(won)
 
-        avg_progress = round(total_progress / EVAL_EPISODES, 2)
+        avg_progress = round(np.mean(progress_list), 2) if progress_list else 0.0
         eval_winrate = round(total_wins / EVAL_EPISODES, 2)
         eval_guessrate = round(total_guesses / EVAL_EPISODES, 2)
         eval_cond_winrate = round(np.mean(conditional_wins), 2) if conditional_wins else 0.0
+
+        with self.eval_tensorboard.writer.as_default():
+            tf.summary.histogram('eval_progress_hist', progress_list, step=step)
 
         stats = dict(
             eval_progress_avg=avg_progress,
