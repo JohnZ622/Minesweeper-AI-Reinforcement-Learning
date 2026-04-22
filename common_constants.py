@@ -32,3 +32,7 @@ REWARD_NO_PROGRESS = -0.3
 # DQN settings
 CONV_UNITS = 64 # number of neurons in each conv layer
 DENSE_UNITS = 512 # number of neurons in fully connected dense layer
+
+# Training loop settings
+AGG_STATS_EVERY = 100     # aggregate and log stats every N episodes
+SAVE_MODEL_EVERY = 10_000  # save model and replay buffer every N episodes
