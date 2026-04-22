@@ -37,6 +37,8 @@ def parse_args():
                         help='Log loss heatmap to TensorBoard during training', default=False)
     parser.add_argument('--log_last_layer_input', action='store_true',
                         help='Log last layer input activations to TensorBoard during training', default=True)
+    parser.add_argument('--max_clicks', type=int, default=0,
+                        help='Stop training after this many clicks (0 = no limit)')
 
     return parser.parse_args()
 
@@ -112,7 +114,7 @@ def main():
     episode = 0
     n_trains = 0
     with tqdm(unit='episode') as pbar:
-        while not stop_training:
+        while not stop_training and (params.max_clicks == 0 or n_clicks < params.max_clicks):
             episode += 1
             pbar.update(1)
 

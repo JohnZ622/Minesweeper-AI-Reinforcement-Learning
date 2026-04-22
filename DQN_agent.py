@@ -17,7 +17,7 @@ from DQN import *
 from common_constants import *
 
 # Default model name
-MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_b2a7dff'
+MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_train_freq_{TRAIN_EVERY_N_CLICKS}_db98f5f6'
 
 class DQNAgent(object):
     def __init__(self, env, model_name, conv_units=CONV_UNITS, dense_units=DENSE_UNITS, log_last_layer_input=False):
