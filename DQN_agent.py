@@ -201,6 +201,3 @@ class DQNAgent(object):
         self.model.save(f'models/{self.model_name}.keras')
         with open(f'replay/{self.model_name}.step', 'w') as f:
             f.write(str(n_clicks))
-
-if __name__ == "__main__":
-    DQNAgent(MinesweeperEnv(9,9,10))
