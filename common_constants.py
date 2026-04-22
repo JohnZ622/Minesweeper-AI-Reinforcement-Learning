@@ -10,13 +10,13 @@ MEM_SIZE_MIN = 1_000 # min number of moves in replay buffer
 BATCH_SIZE = 512
 LEARN_RATE = 0.01
 DISCOUNT = 0.1 #gamma
-TRAIN_EVERY_N_CLICKS = 10
+TRAIN_EVERY_N_CLICKS = 500
 UPDATE_TARGET_EVERY_N_EPISODES = 5
 
 # Exploration settings
 EPSILON_INIT = 0.95
 EPSILON_DECAY = 0.99999
-EPSILON_MIN = 0.95
+EPSILON_MIN = 0.01
 
 # Logging settings
 GRAD_LOG_EVERY_N_TRAINS = 50  # log gradient histograms every N training steps
