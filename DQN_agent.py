@@ -15,30 +15,30 @@ from my_tensorboard2 import *
 from DQN import *
 
 from common_constants import *
+from training_config import TrainingConfig
 
-# Default model name
 MODEL_NAME = f'conv{CONV_UNITS}x4_dense{DENSE_UNITS}x2_y{DISCOUNT}_train_freq_{TRAIN_EVERY_N_CLICKS}_db98f5f6'
 
 class DQNAgent(object):
-    def __init__(self, env, model_name, conv_units=CONV_UNITS, dense_units=DENSE_UNITS, log_last_layer_input=False):
+    def __init__(self, env, model_name, cfg: TrainingConfig = None, log_last_layer_input=False):
+        self.cfg = cfg or TrainingConfig()
         self.env = env
         self.model_name = model_name
 
-        # Deep Q-learning Parameters
-        self.learn_rate = LEARN_RATE
-        self.epsilon = EPSILON_INIT
-        
+        self.learn_rate = self.cfg.learn_rate
+        self.epsilon = self.cfg.epsilon_init
         self.target_update_counter = 0
 
         self.model = create_dqn(
-            self.learn_rate, self.env.state_im.shape, self.env.ntiles, conv_units, dense_units)
+            self.cfg.learn_rate, self.env.state_im.shape, self.env.ntiles,
+            self.cfg.conv_units, self.cfg.dense_units)
 
-        # target model - this is what we predict against every step
         self.target_model = create_dqn(
-            self.learn_rate, self.env.state_im.shape, self.env.ntiles, conv_units, dense_units)
+            self.cfg.learn_rate, self.env.state_im.shape, self.env.ntiles,
+            self.cfg.conv_units, self.cfg.dense_units)
         self.target_model.set_weights(self.model.get_weights())
 
-        self.replay_memory = deque(maxlen=MEM_SIZE)
+        self.replay_memory = deque(maxlen=self.cfg.mem_size)
         self.n_trains = 0
         self.log_last_layer_input = log_last_layer_input
         if log_last_layer_input:
@@ -70,10 +70,10 @@ class DQNAgent(object):
         self.replay_memory.append(transition)
 
     def train(self, done, n_clicks, compute_td_errors=False, loss_heatmap=False):
-        if len(self.replay_memory) < MEM_SIZE_MIN:
+        if len(self.replay_memory) < self.cfg.mem_size_min:
             return None, None
 
-        batch = random.sample(self.replay_memory, BATCH_SIZE)
+        batch = random.sample(self.replay_memory, self.cfg.batch_size)
 
         current_states = np.array([transition[0] for transition in batch])
         current_qs_list = self.model(current_states, batch_size=len(current_states), verbose = 0).numpy()
@@ -87,7 +87,7 @@ class DQNAgent(object):
         for i, (current_state, action, reward, new_current_state, done) in enumerate(batch):
             if not done:
                 max_future_q = np.max(future_qs_list[i])
-                new_q = reward + DISCOUNT * max_future_q
+                new_q = reward + self.cfg.discount * max_future_q
             else:
                 new_q = reward
 
@@ -107,7 +107,7 @@ class DQNAgent(object):
         # Shape: (Batch_size, n_actions), it's the q value vector
         y_arr = np.array(y)
 
-        if self.n_trains % GRAD_LOG_EVERY_N_TRAINS == 0:
+        if self.n_trains % self.cfg.grad_log_every_n_trains == 0:
             with tf.GradientTape() as tape:
                 preds = self.model(X_arr, training=True)
                 loss = self.model.compiled_loss(y_arr, preds)
@@ -130,7 +130,7 @@ class DQNAgent(object):
                     tf.summary.image('loss_heatmap', heatmap_tensor, step=n_clicks, max_outputs=3)
         else:
             gradients = None
-            self.model.fit(X_arr, y_arr, batch_size=BATCH_SIZE,
+            self.model.fit(X_arr, y_arr, batch_size=self.cfg.batch_size,
                            shuffle=False, verbose=0, callbacks=[self.tensorboard]\
                            if done else None)
 
@@ -140,12 +140,12 @@ class DQNAgent(object):
         if done:
             self.target_update_counter += 1
 
-        if self.target_update_counter > UPDATE_TARGET_EVERY_N_EPISODES:
+        if self.target_update_counter > self.cfg.update_target_every_n_episodes:
             self.target_model.set_weights(self.model.get_weights())
             self.target_update_counter = 0
 
         # decay epsilon
-        self.epsilon = max(EPSILON_MIN, self.epsilon*EPSILON_DECAY)
+        self.epsilon = max(self.cfg.epsilon_min, self.epsilon * self.cfg.epsilon_decay)
 
         if compute_td_errors:
             return np.array(td_errors), gradients

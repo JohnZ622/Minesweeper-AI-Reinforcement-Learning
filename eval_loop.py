@@ -13,16 +13,20 @@ def create_eval_tensorboard(model_name):
 
 
 class EvalWorker:
-    def __init__(self, model_template, eval_env_params, eval_tensorboard):
+    def __init__(self, model_template, eval_env_params, eval_tensorboard,
+                 eval_episodes=EVAL_EPISODES,
+                 min_steps_for_conditional_win=MIN_STEPS_FOR_CONDITIONAL_WIN):
         self.eval_model = tf.keras.models.clone_model(model_template)
         self.eval_env = MinesweeperEnv(*eval_env_params)
         self.eval_tensorboard = eval_tensorboard
+        self.eval_episodes = eval_episodes
+        self.min_steps_for_conditional_win = min_steps_for_conditional_win
 
         nrows, ncols = self.eval_env.nrows, self.eval_env.ncols
         self.validation_states = load_validation_states(nrows, ncols)
 
-    def run_policy_eval_and_post_stats(self, step):
-        """Run EVAL_EPISODES greedy games and post stats to tensorboard."""
+    def run_policy_eval_and_post_stats(self, step) -> dict:
+        """Run greedy evaluation games, post stats to TensorBoard, and return the stats dict."""
         ntiles = self.eval_env.ntiles
         nrows  = self.eval_env.nrows
         ncols  = self.eval_env.ncols
@@ -36,7 +40,7 @@ class EvalWorker:
         total_wins, total_guesses = 0, 0
         progress_list = []
         conditional_wins = []
-        for _ in range(EVAL_EPISODES):
+        for _ in range(self.eval_episodes):
             self.eval_env.reset()
             past_wins = self.eval_env.n_wins
             done = False
@@ -49,12 +53,12 @@ class EvalWorker:
             total_guesses += self.eval_env.n_guesses
             if won:
                 total_wins += 1
-            if steps > MIN_STEPS_FOR_CONDITIONAL_WIN:
+            if steps > self.min_steps_for_conditional_win:
                 conditional_wins.append(won)
 
         avg_progress = round(np.mean(progress_list), 2) if progress_list else 0.0
-        eval_winrate = round(total_wins / EVAL_EPISODES, 2)
-        eval_guessrate = round(total_guesses / EVAL_EPISODES, 2)
+        eval_winrate = round(total_wins / self.eval_episodes, 2)
+        eval_guessrate = round(total_guesses / self.eval_episodes, 2)
         eval_cond_winrate = round(np.mean(conditional_wins), 2) if conditional_wins else 0.0
 
         with self.eval_tensorboard.writer.as_default():
@@ -75,26 +79,33 @@ class EvalWorker:
 
         self.eval_tensorboard.step = step
         self.eval_tensorboard.update_stats(**stats)
+        return stats
 
 
-def eval_worker(eval_queue, model_template, eval_env_params, eval_tensorboard):
+def eval_worker(eval_queue, model_template, eval_env_params, eval_tensorboard,
+                eval_episodes, min_steps_for_conditional_win):
     """Persistent eval thread: loops waiting for (weights, step) from the main thread."""
-    worker = EvalWorker(model_template, eval_env_params, eval_tensorboard)
+    worker = EvalWorker(model_template, eval_env_params, eval_tensorboard,
+                        eval_episodes=eval_episodes,
+                        min_steps_for_conditional_win=min_steps_for_conditional_win)
     while True:
-        weights, step = eval_queue.get()  # blocks until main thread enqueues work
+        weights, step = eval_queue.get()
         worker.eval_model.set_weights(weights)
         worker.run_policy_eval_and_post_stats(step)
 
 
-def start_eval_thread(model_name, model, width, height, n_mines):
-    """Create and start the eval thread. Returns (eval_queue, eval_tensorboard)."""
+def start_eval_thread(model_name, model, width, height, n_mines,
+                      eval_episodes=EVAL_EPISODES,
+                      min_steps_for_conditional_win=MIN_STEPS_FOR_CONDITIONAL_WIN):
+    """Create and start the eval thread. Returns eval_queue."""
     eval_tensorboard = create_eval_tensorboard(model_name)
     eval_env_params = (width, height, n_mines)
     eval_queue = queue.Queue(maxsize=1)
 
     eval_thread = threading.Thread(
         target=eval_worker,
-        args=(eval_queue, model, eval_env_params, eval_tensorboard),
+        args=(eval_queue, model, eval_env_params, eval_tensorboard,
+              eval_episodes, min_steps_for_conditional_win),
         daemon=True)
     eval_thread.start()
 

@@ -11,90 +11,90 @@ from tensorboard.plugins.hparams import api as hp
 from DQN_agent import *
 from eval_loop import *
 from common_constants import *
+from training_config import TrainingConfig
 from validation import *
 
-print("GPU Available: ", tf.config.list_physical_devices('GPU'))
-if tf.config.list_physical_devices('GPU') == []:
-    print("No GPU detected. Training may be slow.")
-    exit()
 
-# intake MinesweeperEnv parameters, beginner mode by default
-def parse_args():
-    parser = argparse.ArgumentParser(description='Train a DQN to play Minesweeper')
-    parser.add_argument('--width', type=int, default=9,
-                        help='width of the board')
-    parser.add_argument('--height', type=int, default=9,
-                        help='height of the board')
-    parser.add_argument('--n_mines', type=int, default=10,
-                        help='Number of mines on the board')
-    parser.add_argument('--model_name', type=str, default=f'{MODEL_NAME}',
-                        help='Name of model')
-    parser.add_argument('--visualize_training', action='store_true',
-                        help='Visualize the training process', default=False)
-    parser.add_argument('--eval_thread', action='store_true',
-                        help='Run eval thread during training (otherwise just do evaluation inline)', default=False)
-    parser.add_argument('--loss_heatmap', action='store_true',
-                        help='Log loss heatmap to TensorBoard during training', default=False)
-    parser.add_argument('--log_last_layer_input', action='store_true',
-                        help='Log last layer input activations to TensorBoard during training', default=True)
-    parser.add_argument('--max_clicks', type=int, default=0,
-                        help='Stop training after this many clicks (0 = no limit)')
+def _try_ray_report(metrics: dict) -> None:
+    """Forward metrics to Ray Tune if running inside a trial, otherwise no-op."""
+    try:
+        from ray import train as ray_train
+        ray_train.report(metrics)
+    except Exception:
+        pass
 
-    return parser.parse_args()
 
-params = parse_args()
-
-def main():
-    env = MinesweeperEnv(params.width, params.height, params.n_mines, gui=params.visualize_training)
-    agent = DQNAgent(env, params.model_name, log_last_layer_input=params.log_last_layer_input)
-
-    # Log hyperparameters to TensorBoard
-    hparams = {
-        'epsilon_min': EPSILON_MIN,
-        'epsilon_init': EPSILON_INIT,
-        'epsilon_decay': EPSILON_DECAY,
-        'learn_rate': LEARN_RATE,
-        'discount': DISCOUNT,
-        'batch_size': BATCH_SIZE,
-        'conv_units': CONV_UNITS,
-        'dense_units': DENSE_UNITS,
-        'reward_win': REWARD_WIN,
-        'reward_lose': REWARD_LOSE,
-        'reward_progress': REWARD_PROGRESS,
-        'reward_guess': REWARD_GUESS,
-        'reward_no_progress': REWARD_NO_PROGRESS,
+def run_training(
+    cfg: TrainingConfig,
+    model_name: str,
+    *,
+    visualize_training: bool = False,
+    eval_thread: bool = False,
+    loss_heatmap: bool = False,
+    log_last_layer_input: bool = True,
+    max_clicks: int = 0,
+    prompt: bool = True,
+    handle_sigint: bool = True,
+) -> None:
+    rewards = {
+        'win': cfg.reward_win,
+        'lose': cfg.reward_lose,
+        'progress': cfg.reward_progress,
+        'guess': cfg.reward_guess,
+        'no_progress': cfg.reward_no_progress,
     }
+    env = MinesweeperEnv(cfg.width, cfg.height, cfg.n_mines, rewards=rewards, gui=visualize_training)
+    agent = DQNAgent(env, model_name, cfg=cfg, log_last_layer_input=log_last_layer_input)
+
     with agent.tensorboard.writer.as_default():
-        hp.hparams(hparams)
+        hp.hparams({
+            'learn_rate': cfg.learn_rate,
+            'discount': cfg.discount,
+            'epsilon_decay': cfg.epsilon_decay,
+            'epsilon_init': cfg.epsilon_init,
+            'epsilon_min': cfg.epsilon_min,
+            'batch_size': cfg.batch_size,
+            'conv_units': cfg.conv_units,
+            'dense_units': cfg.dense_units,
+            'reward_win': cfg.reward_win,
+            'reward_lose': cfg.reward_lose,
+            'reward_progress': cfg.reward_progress,
+            'reward_guess': cfg.reward_guess,
+            'reward_no_progress': cfg.reward_no_progress,
+        })
         agent.tensorboard.writer.flush()
 
-    n_clicks = agent.load_model_and_replay_buffer(prompt=True)
+    n_clicks = agent.load_model_and_replay_buffer(prompt=prompt)
     for var in agent.model.optimizer.variables:
-        var.assign(tf.zeros_like(var))  # Reset optimizer state variables to avoid issues with loaded state
-    agent.model.optimizer.learning_rate.assign(LEARN_RATE)  # Ensure the loaded model has the correct learning rate
-   
-    # Verify it changed
-    print(f"New Learning Rate: {agent.model.optimizer.learning_rate.numpy()}")
+        var.assign(tf.zeros_like(var)) # Reset optimizer state variables to avoid issues with loaded state
+    agent.model.optimizer.learning_rate.assign(cfg.learn_rate) # Ensure the loaded model has the correct learning rate
+    print(f"Learning rate: {agent.model.optimizer.learning_rate.numpy()}")
     print(agent.model.summary())
 
     stop_training = False
 
-    def save_and_exit(_sig, _frame):
-        nonlocal stop_training
-        print('\nInterrupted — saving replay buffer and model...')
-        stop_training = True
+    if handle_sigint:
+        def save_and_exit(_sig, _frame):
+            nonlocal stop_training
+            print('\nInterrupted — saving replay buffer and model...')
+            stop_training = True
+        signal.signal(signal.SIGINT, save_and_exit)
 
-    signal.signal(signal.SIGINT, save_and_exit)
-
-    if params.eval_thread:
+    if eval_thread:
         eval_queue = start_eval_thread(
-            params.model_name, agent.model, params.width, params.height, params.n_mines
+            model_name, agent.model, cfg.width, cfg.height, cfg.n_mines,
+            eval_episodes=cfg.eval_episodes,
+            min_steps_for_conditional_win=cfg.min_steps_for_conditional_win,
         )
         inline_eval_worker = None
     else:
         eval_queue = None
-        eval_tensorboard = create_eval_tensorboard(params.model_name)
-        inline_eval_worker = EvalWorker(agent.model, (params.width, params.height, params.n_mines), eval_tensorboard)
+        eval_tensorboard = create_eval_tensorboard(model_name)
+        inline_eval_worker = EvalWorker(
+            agent.model, (cfg.width, cfg.height, cfg.n_mines), eval_tensorboard,
+            eval_episodes=cfg.eval_episodes,
+            min_steps_for_conditional_win=cfg.min_steps_for_conditional_win,
+        )
 
     validation_states = load_validation_states(env.nrows, env.ncols)
 
@@ -102,16 +102,19 @@ def main():
     wins_list = collections.deque(maxlen=AGG_STATS_EVERY)
     ep_rewards = collections.deque(maxlen=AGG_STATS_EVERY)
     conditional_wins_list = collections.deque(maxlen=AGG_STATS_EVERY)
+    last_eval_stats: dict = {}
     last_clicks_log = 0
     last_trains_log = 0
     last_clicks_log_time = time.time()
     last_train_time = time.time()
     last_eval_time = time.time()
+    time_between_trains = 0.0
+    train_duration = 0.0
 
     episode = 0
     n_trains = 0
     with tqdm(unit='episode') as pbar:
-        while not stop_training and (params.max_clicks == 0 or n_clicks < params.max_clicks):
+        while not stop_training and (max_clicks == 0 or n_clicks < max_clicks):
             episode += 1
             pbar.update(1)
 
@@ -123,40 +126,42 @@ def main():
             done = False
             while not done:
                 current_state = env.state_im
-
                 action, q_values = agent.get_action(current_state, explore=True)
 
-                if (q_values is not None) and params.visualize_training:
+                if q_values is not None and visualize_training:
                     env.plot_qvalues_and_next_action(action, q_values)
                     wait_for_user()
 
                 new_state, reward, done = env.step(action)
                 n_clicks += 1
 
-                if params.visualize_training:
+                if visualize_training:
                     wait_for_user()
 
                 episode_reward += reward
                 episode_steps += 1
 
                 agent.update_replay_memory((current_state, action, reward, new_state, done))
-                if n_clicks % TRAIN_EVERY_N_CLICKS == 0:
+
+                if n_clicks % cfg.train_every_n_clicks == 0:
                     now = time.time()
                     time_between_trains = now - last_train_time
                     last_train_time = now
 
                     train_start = time.time()
-                    compute_td_errors = n_trains % GRAD_LOG_EVERY_N_TRAINS == 0
-                    # update_target = n_trains % UPDATE_TARGET_EVERY_N_TRAININGS == 0
-                    td_errors, gradients = agent.train(done, n_clicks=n_clicks, compute_td_errors=compute_td_errors, loss_heatmap=params.loss_heatmap) # update target every 5
+                    compute_td_errors = n_trains % cfg.grad_log_every_n_trains == 0
+                    td_errors, gradients = agent.train(
+                        done,
+                        n_clicks=n_clicks,
+                        compute_td_errors=compute_td_errors,
+                        loss_heatmap=loss_heatmap,
+                    )
                     train_duration = time.time() - train_start
                     n_trains = agent.n_trains
 
-                    if n_trains % GRAD_LOG_EVERY_N_TRAINS == 0:
+                    if n_trains % cfg.grad_log_every_n_trains == 0:
                         with agent.tensorboard.writer.as_default():
                             for var in agent.model.trainable_variables:
-                                # tag = var.path.replace(':', '_').replace('/', '_')
-                                # print(var.path)
                                 tf.summary.histogram(f'weights/{var.path}', var, step=n_clicks)
                             agent.tensorboard.writer.flush()
 
@@ -164,18 +169,15 @@ def main():
                         with agent.tensorboard.writer.as_default():
                             for var, grad in zip(agent.model.trainable_variables, gradients):
                                 if grad is not None:
-                                    # tag = var.path.replace(':', '_').replace('/', '_')
-                                    # print(var.path)
                                     tf.summary.histogram(f'gradients/{var.path}', grad, step=n_clicks)
                             agent.tensorboard.writer.flush()
 
                     if td_errors is not None:
-                        stats = dict(
-                            td_error_mean = np.mean(td_errors),
-                            td_error_max = np.max(td_errors),
-                        )
                         agent.tensorboard.step = n_clicks
-                        agent.tensorboard.update_stats(**stats)
+                        agent.tensorboard.update_stats(
+                            td_error_mean=np.mean(td_errors),
+                            td_error_max=np.max(td_errors),
+                        )
 
                     if eval_queue is not None:
                         try:
@@ -189,17 +191,17 @@ def main():
 
             won = env.n_wins > past_n_wins
             wins_list.append(1 if won else 0)
-            if episode_steps > MIN_STEPS_FOR_CONDITIONAL_WIN:
+            if episode_steps > cfg.min_steps_for_conditional_win:
                 conditional_wins_list.append(won)
 
-            if len(agent.replay_memory) < MEM_SIZE_MIN:
+            if len(agent.replay_memory) < cfg.mem_size_min:
                 continue
 
             if inline_eval_worker is not None:
                 now = time.time()
-                if now - last_eval_time >= EVAL_INTERVAL_SECONDS:
+                if now - last_eval_time >= cfg.eval_interval_seconds:
                     inline_eval_worker.eval_model.set_weights(agent.model.get_weights())
-                    inline_eval_worker.run_policy_eval_and_post_stats(n_clicks)
+                    last_eval_stats = inline_eval_worker.run_policy_eval_and_post_stats(n_clicks)
                     last_eval_time = now
 
             if not episode % AGG_STATS_EVERY:
@@ -260,10 +262,64 @@ def main():
                 print_msg += f'Mine hit % in replay: {mine_hit_pct_in_replay:.4f}'
                 print(print_msg)
 
+                _try_ray_report({**stats, **last_eval_stats, 'n_clicks': n_clicks})
+
             if not episode % SAVE_MODEL_EVERY:
                 agent.save_model_and_replay_buffer(n_clicks)
         # Final save on exit
         agent.save_model_and_replay_buffer(n_clicks)
 
-if __name__ == "__main__":
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Train a DQN to play Minesweeper')
+    parser.add_argument('--width', type=int, default=9)
+    parser.add_argument('--height', type=int, default=9)
+    parser.add_argument('--n_mines', type=int, default=10)
+    parser.add_argument('--model_name', type=str, default=MODEL_NAME)
+    parser.add_argument('--visualize_training', action='store_true', default=False)
+    parser.add_argument('--eval_thread', action='store_true', default=False)
+    parser.add_argument('--loss_heatmap', action='store_true', default=False)
+    parser.add_argument('--log_last_layer_input', action='store_true', default=True)
+    parser.add_argument('--max_clicks', type=int, default=0)
+    # Hyperparameter overrides — replaces editing common_constants.py by hand
+    parser.add_argument('--learn_rate', type=float, default=LEARN_RATE)
+    parser.add_argument('--discount', type=float, default=DISCOUNT)
+    parser.add_argument('--epsilon_decay', type=float, default=EPSILON_DECAY)
+    parser.add_argument('--batch_size', type=int, default=BATCH_SIZE)
+    parser.add_argument('--train_every_n_clicks', type=int, default=TRAIN_EVERY_N_CLICKS)
+    parser.add_argument('--conv_units', type=int, default=CONV_UNITS)
+    parser.add_argument('--dense_units', type=int, default=DENSE_UNITS)
+    return parser.parse_args()
+
+
+def main():
+    print("GPU Available: ", tf.config.list_physical_devices('GPU'))
+    if tf.config.list_physical_devices('GPU') == []:
+        print("No GPU detected. Training may be slow.")
+        exit()
+
+    args = parse_args()
+    cfg = TrainingConfig(
+        width=args.width,
+        height=args.height,
+        n_mines=args.n_mines,
+        learn_rate=args.learn_rate,
+        discount=args.discount,
+        epsilon_decay=args.epsilon_decay,
+        batch_size=args.batch_size,
+        train_every_n_clicks=args.train_every_n_clicks,
+        conv_units=args.conv_units,
+        dense_units=args.dense_units,
+    )
+    run_training(
+        cfg, args.model_name,
+        visualize_training=args.visualize_training,
+        eval_thread=args.eval_thread,
+        loss_heatmap=args.loss_heatmap,
+        log_last_layer_input=args.log_last_layer_input,
+        max_clicks=args.max_clicks,
+    )
+
+
+if __name__ == '__main__':
     main()
