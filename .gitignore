@@ -2,6 +2,7 @@ stdout.txt
 **/__pycache__/**
 logs/
 logs-bak/
+ray_results/
 
 # Saved model and replay buffers
 *.pkl
