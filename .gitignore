@@ -9,3 +9,5 @@ ray_results/
 *.keras
 *.h5
 *.step
+
+.vscode/
