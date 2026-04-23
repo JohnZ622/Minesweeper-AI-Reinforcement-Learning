@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from common_constants import *
 
 @dataclass
@@ -36,3 +36,9 @@ class TrainingConfig:
     # Evaluation
     eval_episodes: int = EVAL_EPISODES
     min_steps_for_conditional_win: int = MIN_STEPS_FOR_CONDITIONAL_WIN
+
+    def __str__(self) -> str:
+        lines = ['TrainingConfig:']
+        for f in fields(self):
+            lines.append(f'  {f.name}: {getattr(self, f.name)}')
+        return '\n'.join(lines)

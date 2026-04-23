@@ -311,6 +311,7 @@ def main():
         conv_units=args.conv_units,
         dense_units=args.dense_units,
     )
+    print(cfg)
     run_training(
         cfg, args.model_name,
         visualize_training=args.visualize_training,
