@@ -1,0 +1,33 @@
+# Python
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Logs and outputs
+logs/
+logs-bak/
+stdout.txt
+
+# Saved models and replay buffers
+*.pkl
+*.keras
+*.h5
+*.step
+models/
+replay/
+
+# Dev/local artifacts
+*.gif
+*.png
+figures/
+pics/
+notes/
+validation_states/
+
+# Git
+.git/
+
+# Docker
+Dockerfile
+docker_run.sh
+.dockerignore
