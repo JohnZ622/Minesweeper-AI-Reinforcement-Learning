@@ -1,7 +1,10 @@
+# Remember this docker image is going to used for Ray workers / head
+
 # Python
 **/__pycache__/
 *.pyc
 *.pyo
+.venv/
 
 # Logs and outputs
 logs/
@@ -22,7 +25,7 @@ replay/
 figures/
 pics/
 notes/
-validation_states/
+# validation_states/, you need validation_states to compute the evaluation metrics
 
 # Git
 .git/
