@@ -262,7 +262,8 @@ def run_training(
                 print_msg += f'Mine hit % in replay: {mine_hit_pct_in_replay:.4f}'
                 print(print_msg)
 
-                _try_ray_report({**stats, **last_eval_stats, 'n_clicks': n_clicks})
+                # _step is used as X-axis in WandB
+                _try_ray_report({**stats, **last_eval_stats, '_step': n_clicks})
 
             if not episode % SAVE_MODEL_EVERY:
                 agent.save_model_and_replay_buffer(n_clicks)
