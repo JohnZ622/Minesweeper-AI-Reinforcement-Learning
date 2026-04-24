@@ -28,7 +28,8 @@ SEARCH_GRID = {
 
 
 def train_trial(config: dict) -> None:
-    trial_id = ray.train.get_context().get_trial_id()
+    trial_id = tune.get_context().get_trial_id()
+
     cfg = TrainingConfig(**config)
     run_training(
         cfg,
@@ -71,7 +72,7 @@ def main():
             '_max_clicks': args.max_clicks
         }
         tune_config=tune.TuneConfig(num_samples=1),  # grid_search already expands all combos
-        run_config=ray.train.RunConfig(
+        run_config=tune.RunConfig(
             name='minesweeper_sweep',
             callbacks=[WandbLoggerCallback(project=args.wandb_project)],
         ),

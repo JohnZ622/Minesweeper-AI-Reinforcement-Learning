@@ -18,8 +18,8 @@ from validation import *
 def _try_ray_report(metrics: dict) -> None:
     """Forward metrics to Ray Tune if running inside a trial, otherwise no-op."""
     try:
-        from ray import train as ray_train
-        ray_train.report(metrics)
+        from ray import tune as ray_tune
+        ray_tune.report(metrics)
     except Exception:
         pass
 
