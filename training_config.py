@@ -17,6 +17,7 @@ class TrainingConfig:
     discount: float = DISCOUNT
     train_every_n_clicks: int = TRAIN_EVERY_N_CLICKS
     update_target_every_n_episodes: int = UPDATE_TARGET_EVERY_N_EPISODES
+    max_clicks: int = 0
     # Exploration
     epsilon_init: float = EPSILON_INIT
     epsilon_decay: float = EPSILON_DECAY

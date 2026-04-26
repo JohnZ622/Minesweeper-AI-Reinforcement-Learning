@@ -27,14 +27,13 @@ SEARCH_GRID = {
 }
 
 
-def train_trial(config: dict) -> None:
+def train_trial(config: dict, max_clicks: int = 2_000_000) -> None:
     trial_id = tune.get_context().get_trial_id()
 
-    cfg = TrainingConfig(**config)
+    cfg = TrainingConfig(**config, max_clicks=max_clicks)
     run_training(
         cfg,
         model_name=f'sweep_{trial_id}',
-        max_clicks=config['_max_clicks'],
         prompt=False,
         handle_sigint=False,
     )
@@ -43,34 +42,35 @@ def train_trial(config: dict) -> None:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--wandb-project', default='minesweeper-rl')
-    parser.add_argument('--max-clicks', type=int, default=2_000_000)
+    parser.add_argument('--max-clicks', type=int, default=2000)
     args = parser.parse_args()
 
     ray.init(
-        address='auto',
+        # address='auto',
+        address='local',
         runtime_env={
             'working_dir': '.',
-            'excludes': ['models/', 'replay/', 'logs/', '.git/', '__pycache__/', 'notes', '.venv/', 'img/'],
+            'excludes': ['models/', 'replay/', 'logs/', 'logs-bak', '.git/', '__pycache__/', 'notes', '.venv/', '.vscode/', 'img/'],
             # Suppress pygame display errors on headless workers
             'env_vars': {'SDL_VIDEODRIVER': 'dummy', 'SDL_AUDIODRIVER': 'dummy'},
         },
     )
 
-    # Inject max_clicks into each trial's config dict
-    param_space = {**SEARCH_GRID, '_max_clicks': args.max_clicks}
+    param_space = {
+        'learn_rate': LEARN_RATE,
+        'discount': DISCOUNT,
+        'train_every_n_clicks': TRAIN_EVERY_N_CLICKS,
+        'batch_size': BATCH_SIZE,
+        'update_target_every_n_episodes': UPDATE_TARGET_EVERY_N_EPISODES,
+        'reward_progress': REWARD_PROGRESS,
+    }
 
     tuner = tune.Tuner(
-        tune.with_resources(train_trial, resources={'cpu': 1, 'gpu': 1}),
-        #param_space=param_space,
-        param_space= {
-            'learn_rate': LEARN_RATE,
-            'discount': DISCOUNT,
-            'train_every_n_clicks': TRAIN_EVERY_N_CLICKS,
-            'batch_size': BATCH_SIZE,
-            'update_target_every_n_episodes': UPDATE_TARGET_EVERY_N_EPISODES,
-            'reward_progress': REWARD_PROGRESS,
-            '_max_clicks': args.max_clicks
-        }
+        tune.with_resources(
+            tune.with_parameters(train_trial, max_clicks=args.max_clicks),
+            resources={'cpu': 1, 'gpu': 1},
+        ),
+        param_space=param_space,        
         tune_config=tune.TuneConfig(num_samples=1),  # grid_search already expands all combos
         run_config=tune.RunConfig(
             name='minesweeper_sweep',

@@ -32,7 +32,6 @@ def run_training(
     eval_thread: bool = False,
     loss_heatmap: bool = False,
     log_last_layer_input: bool = True,
-    max_clicks: int = 0,
     prompt: bool = True,
     handle_sigint: bool = True,
 ) -> None:
@@ -114,7 +113,7 @@ def run_training(
     episode = 0
     n_trains = 0
     with tqdm(unit='episode') as pbar:
-        while not stop_training and (max_clicks == 0 or n_clicks < max_clicks):
+        while not stop_training and (cfg.max_clicks == 0 or n_clicks < cfg.max_clicks):
             episode += 1
             pbar.update(1)
 
@@ -240,7 +239,6 @@ def run_training(
                     stats['second_state_max_q' ]  = max_q_stats[2]
                 agent.tensorboard.update_stats(**stats)
 
-
                 print_msg = (
                     f'Episode: {episode}, '
                     f'n_clicks: {n_clicks} ({clicks_per_sec}/s), '
@@ -281,7 +279,7 @@ def parse_args():
     parser.add_argument('--eval_thread', action='store_true', default=False)
     parser.add_argument('--loss_heatmap', action='store_true', default=False)
     parser.add_argument('--log_last_layer_input', action='store_true', default=True)
-    parser.add_argument('--max_clicks', type=int, default=0)
+    parser.add_argument('--max_clicks', type=int, default=2000)
     # Hyperparameter overrides — replaces editing common_constants.py by hand
     parser.add_argument('--learn_rate', type=float, default=LEARN_RATE)
     parser.add_argument('--discount', type=float, default=DISCOUNT)
@@ -311,6 +309,7 @@ def main():
         train_every_n_clicks=args.train_every_n_clicks,
         conv_units=args.conv_units,
         dense_units=args.dense_units,
+        max_clicks=args.max_clicks,
     )
     print(cfg)
     run_training(
@@ -319,7 +318,6 @@ def main():
         eval_thread=args.eval_thread,
         loss_heatmap=args.loss_heatmap,
         log_last_layer_input=args.log_last_layer_input,
-        max_clicks=args.max_clicks,
     )
 
 
