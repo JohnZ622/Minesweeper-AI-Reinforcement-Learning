@@ -1,12 +1,13 @@
 import os
 import numpy as np
 
-VALIDATION_STATES_PATH = 'validation_states/states.npy'
+VALIDATION_STATES_PATH = os.path.join(os.path.dirname(__file__), 'validation_states/states.npy')
 
 def load_validation_states(nrows, ncols):
     """Load validation states from disk, or return None if unavailable."""
     if os.path.exists(VALIDATION_STATES_PATH):
         raw = np.load(VALIDATION_STATES_PATH)
+        print("Loaded validation states from", VALIDATION_STATES_PATH)
         return raw.reshape(-1, nrows, ncols, 1)
     return None
 
