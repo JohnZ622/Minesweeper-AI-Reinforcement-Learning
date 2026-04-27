@@ -5,6 +5,7 @@ Launch from the head node after `ray up ray_cluster.yaml`:
     python tune_sweep.py --wandb-project minesweeper-rl --max-clicks 2000000
 """
 import argparse
+import datetime
 import ray
 import wandb
 from ray import tune
@@ -30,7 +31,7 @@ SEARCH_GRID = {
 def train_trial(config: dict, wandb_project: str, max_clicks: int = 2_000_000) -> None:
     trial_id = tune.get_context().get_trial_id()
 
-    wandb.init(project=wandb_project, config=config, name=f'sweep_{trial_id}', reinit=True)
+    wandb.init(project=wandb_project, group=wandb_group, config=config, name=f'sweep_{trial_id}', reinit=True)
     cfg = TrainingConfig(**config, max_clicks=max_clicks)
     run_training(
         cfg,
@@ -66,10 +67,11 @@ def main():
         'update_target_every_n_episodes': UPDATE_TARGET_EVERY_N_EPISODES,
         'reward_progress': REWARD_PROGRESS,
     }
+    wandb_group = f'sweep_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}'
 
     tuner = tune.Tuner(
         tune.with_resources(
-            tune.with_parameters(train_trial, wandb_project=args.wandb_project, max_clicks=args.max_clicks),
+            tune.with_parameters(train_trial, wandb_project=args.wandb_project, max_clicks=args.max_clicks, wandb_group=wandb_group),
             resources={'cpu': 1, 'gpu': 1},
         ),
         param_space=param_space,
