@@ -1,0 +1,86 @@
+cluster_name: minesweeper-sweep
+max_workers: 50
+
+initialization_commands:
+    - sudo apt-get update
+    - sudo apt-get install -y docker.io
+    - sudo usermod -aG docker $USER
+    - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 863679674448.dkr.ecr.us-east-1.amazonaws.com
+
+docker:
+  image: "863679674448.dkr.ecr.us-east-1.amazonaws.com/shuheng/minesweeper-ai"
+  container_name: "minesweeper_sweep_container"
+  pull_before_run: true
+  run_options:
+    - "--ipc=host"
+    - "--ulimit memlock=-1"
+
+provider:
+  type: aws
+  region: us-east-1
+  # Span multiple AZs for better spot instance availability
+  availability_zone: us-east-1a,us-east-1b,us-east-1c
+  cache_stopped_nodes: false  # terminate rather than stop; avoids EBS idle costs
+
+auth:
+  ssh_user: admin
+  ssh_private_key: ~/.ssh/Shuheng2.pem  # REPLACE
+
+available_node_types:
+
+  ray_head:
+    # Head node only runs the Ray scheduler — no GPU needed
+    resources: {}
+    node_config:
+      InstanceType: m5.xlarge
+      # Debian 12 (Bookworm) (us-east-1) — find latest ID with:
+      #   aws ec2 describe-images --owners 136693071363 \
+      #     --filters "Name=name,Values=debian-12-amd64*" \
+      #     --query "sort_by(Images,&CreationDate)[-1].ImageId" --output text
+      ImageId: ami-0e7a3d4bf48d3897e
+      KeyName: Shuheng2  # REPLACE
+      SecurityGroupIds:
+        - sg-07050d77961e6c8bb  # REPLACE — must allow: SSH (22), Ray (6379, 8265, 10001) within VPC
+      # cloud-init installs rsync before Ray connects (needed for file_mounts step, which runs before initialization_commands)
+      UserData: |
+        #!/bin/bash
+        apt-get update -y && apt-get install -y rsync
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 40
+            VolumeType: gp3
+            DeleteOnTermination: true
+    min_workers: 0
+    max_workers: 0
+
+  ray_worker_gpu:
+    # g4dn.xlarge: 4 vCPU, 16 GB RAM, 1× NVIDIA T4 (16 GB VRAM) — ~$0.53/hr on-demand
+    resources: {CPU: 1, GPU: 1}
+    node_config:
+      InstanceType: g4dn.xlarge
+      ImageId: ami-0e7a3d4bf48d3897e  # same Debian 12 as head
+      KeyName: Shuheng2  # REPLACE
+      SecurityGroupIds:
+        - sg-07050d77961e6c8bb  # REPLACE
+      IamInstanceProfile:
+        Name: ray-autoscaler-v1
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 40
+            VolumeType: gp3
+            DeleteOnTermination: true
+      InstanceMarketOptions:
+        MarketType: spot
+        SpotOptions:
+          MaxPrice: "0.35"
+    min_workers: 0
+    max_workers: 10
+
+head_node_type: ray_head
+
+file_mounts: {}  # code is synced via runtime_env.working_dir in tune_sweep.py
+
+head_setup_commands: []
+worker_setup_commands: []
