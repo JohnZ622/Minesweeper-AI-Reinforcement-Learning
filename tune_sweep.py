@@ -6,8 +6,8 @@ Launch from the head node after `ray up ray_cluster.yaml`:
 """
 import argparse
 import ray
+import wandb
 from ray import tune
-from ray.air.integrations.wandb import WandbLoggerCallback
 
 from common_constants import *
 from training_config import TrainingConfig
@@ -27,9 +27,10 @@ SEARCH_GRID = {
 }
 
 
-def train_trial(config: dict, max_clicks: int = 2_000_000) -> None:
+def train_trial(config: dict, wandb_project: str, max_clicks: int = 2_000_000) -> None:
     trial_id = tune.get_context().get_trial_id()
 
+    wandb.init(project=wandb_project, config=config, name=f'sweep_{trial_id}', reinit=True)
     cfg = TrainingConfig(**config, max_clicks=max_clicks)
     run_training(
         cfg,
@@ -37,6 +38,7 @@ def train_trial(config: dict, max_clicks: int = 2_000_000) -> None:
         prompt=False,
         handle_sigint=False,
     )
+    wandb.finish()
 
 
 def main():
@@ -67,15 +69,12 @@ def main():
 
     tuner = tune.Tuner(
         tune.with_resources(
-            tune.with_parameters(train_trial, max_clicks=args.max_clicks),
+            tune.with_parameters(train_trial, wandb_project=args.wandb_project, max_clicks=args.max_clicks),
             resources={'cpu': 1, 'gpu': 1},
         ),
-        param_space=param_space,        
+        param_space=param_space,
         tune_config=tune.TuneConfig(num_samples=1),  # grid_search already expands all combos
-        run_config=tune.RunConfig(
-            name='minesweeper_sweep',
-            callbacks=[WandbLoggerCallback(project=args.wandb_project)],
-        ),
+        run_config=tune.RunConfig(name='minesweeper_sweep'),
     )
 
     results = tuner.fit()

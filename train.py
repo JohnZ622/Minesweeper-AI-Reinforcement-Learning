@@ -15,11 +15,14 @@ from training_config import TrainingConfig
 from validation import *
 
 
-def _try_ray_report(metrics: dict) -> None:
-    """Forward metrics to Ray Tune if running inside a trial, otherwise no-op."""
+def _try_ray_report(metrics: dict, n_clicks: int) -> None:
+    """Forward metrics to Ray Tune / W&B if running inside a trial, otherwise no-op."""
     try:
+        import wandb
         from ray import tune as ray_tune
-        ray_tune.report(metrics)
+        if wandb.run is not None:
+            wandb.log(metrics, step=n_clicks)
+        ray_tune.report({**metrics, '_step': n_clicks})
     except Exception:
         pass
 
@@ -260,8 +263,7 @@ def run_training(
                 print_msg += f'Mine hit % in replay: {mine_hit_pct_in_replay:.4f}'
                 print(print_msg)
 
-                # _step is used as X-axis in WandB
-                _try_ray_report({**stats, **last_eval_stats, '_step': n_clicks})
+                _try_ray_report({**stats, **last_eval_stats}, n_clicks)
 
             if not episode % SAVE_MODEL_EVERY:
                 agent.save_model_and_replay_buffer(n_clicks)
