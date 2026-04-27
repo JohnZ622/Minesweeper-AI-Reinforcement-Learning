@@ -11,6 +11,7 @@ class ModifiedTensorBoard(TensorBoard):
         self.step = 1
         self.writer = tf.summary.create_file_writer(self.log_dir)
         self._log_write_dir = self.log_dir
+        print('ModifiedTensorBoard initialized with log_dir:', self.log_dir)
         # FIX: Manually add this attribute for compatibility
         self._train_dir = os.path.join(self.log_dir, 'train')
         self._should_write_train_graph = False 
