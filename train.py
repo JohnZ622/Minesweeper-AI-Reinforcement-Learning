@@ -22,9 +22,22 @@ def _try_ray_report(metrics: dict, n_clicks: int) -> None:
         from ray import tune as ray_tune
         if wandb.run is not None:
             wandb.log(metrics, step=n_clicks)
-        ray_tune.report({**metrics, '_step': n_clicks})
+        ray_tune.report(metrics)
     except Exception:
         pass
+
+
+def _try_wandb_histograms(prefix: str, named_tensors: list, n_clicks: int) -> None:
+    try:
+        import wandb
+        if wandb.run is None:
+            return
+        wandb.log(
+            {f'{prefix}/{name}': wandb.Histogram(tensor.numpy()) for name, tensor in named_tensors},
+            step=n_clicks,
+        )
+    except Exception as e:
+        print(f'[wandb histogram error] {e}')
 
 
 def run_training(
@@ -166,6 +179,7 @@ def run_training(
                             for var in agent.model.trainable_variables:
                                 tf.summary.histogram(f'weights/{var.path}', var, step=n_clicks)
                             agent.tensorboard.writer.flush()
+                        _try_wandb_histograms('weights', [(var.path, var) for var in agent.model.trainable_variables], n_clicks)
 
                     if gradients is not None:
                         with agent.tensorboard.writer.as_default():
@@ -173,6 +187,7 @@ def run_training(
                                 if grad is not None:
                                     tf.summary.histogram(f'gradients/{var.path}', grad, step=n_clicks)
                             agent.tensorboard.writer.flush()
+                        _try_wandb_histograms('gradients', [(var.path, grad) for var, grad in zip(agent.model.trainable_variables, gradients) if grad is not None], n_clicks)
 
                     if td_errors is not None:
                         agent.tensorboard.step = n_clicks
